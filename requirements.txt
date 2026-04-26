@@ -1,0 +1,23 @@
+
+# Flask
+Flask==3.0.3
+Flask-Migrate==4.0.7
+Flask-SQLAlchemy==3.1.1
+
+# Database
+SQLAlchemy==2.0.30
+psycopg[binary]==3.1.18
+PyJWT==2.8.0
+
+# Environment
+python-dotenv==1.0.1
+
+# Server
+
+gunicorn==22.0.0
+
+
+
+# HTTP Client
+
+requests==2.32.3

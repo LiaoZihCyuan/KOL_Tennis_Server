@@ -1,0 +1,12 @@
+name: flask_server
+channels:
+  - conda-forge
+  - defaults
+channel_priority: strict
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -r requirements.txt
+
+      

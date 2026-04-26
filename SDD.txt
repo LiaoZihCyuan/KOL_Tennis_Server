@@ -1,0 +1,139 @@
+網球排課系統開發規格書 (MVP)
+本文件定義了網球排課系統的核心架構,旨在利用現有的 LoadSheddingServer 模板進行快速開
+發。
+1. 系統架構
+● 後端: Flask (Python 3.10+)
+● 資料庫: PostgreSQL
+● ORM: Flask-SQLAlchemy  
+    - **必須使用 SQLAlchemy 2.0 語法** (例如: `Mapped[]`, `mapped_column()`)
+● 容器化: Docker / Docker Compose
+● 前端入口: LINE 官方帳號 (Messaging API + LIFF)
+● 前端入口: 管理者網站 (Web Portal)
+● 前端入口: 學生網站 (Web Portal, 可選，若不使用 LIFF 作為唯一入口)
+● 自動通知功能: LINE 訊息通知 (預約成功、課程提醒、請假結果、付款確認等)
+● 金流處理: 本系統不處理金流支付，僅記錄堂數變動與預約狀態。
+
+
+2. 資料庫模型設計 (Schema)
+資料表 核心欄位 說明
+Users user_id (PK), line_id (Unique, Nullable), display_name, email (Unique, Nullable), password_hash, role (student/coach/admin), credits
+
+儲存使用者基本資料、角色、LINE ID (若有綁定)、登入憑證及學生剩餘堂數。
+  - `user_id`: 系統內部唯一識別碼。
+  - `line_id`: LINE 帳號的唯一識別碼，若使用者透過 LINE 登入則綁定，否則為 NULL。
+  - `email`: 用於網站登入的帳號，若使用者透過網站登入則提供，否則為 NULL。
+  - `password_hash`: 儲存網站登入密碼的雜湊值。
+  - `role`: 角色，可為 'student' (學生), 'coach' (教練), 'admin' (管理者)。
+  - `credits`: 學生剩餘堂數，教練和管理者此欄位無意義。
+Courses course_id (PK), coach_id,
+start_time, end_time, capacity, location, description, credit_cost, status
+
+管理課程時段、指派教練、課程容量、地點、描述、所需堂數及課程狀態。
+  - `course_id`: 課程唯一識別碼。
+  - `coach_id`: 外鍵，關聯至 `Users` 表的 `user_id`，角色必須為 'coach'。
+  - `start_time`, `end_time`: 課程開始與結束時間。
+  - `capacity`: 課程最大學生人數。
+  - `location`: 課程地點。
+  - `description`: 課程簡述。
+  - `credit_cost`: 學生預約此課程所需扣除的堂數。
+  - `status`: 課程狀態，例如 'scheduled' (已排定), 'cancelled' (已取消), 'completed' (已完成)。
+Bookings booking_id (PK), user_id,
+course_id, booking_time, status, reason
+
+紀錄學生預約課程的狀態與請假原因。
+  - `booking_id`: 預約唯一識別碼。
+  - `user_id`: 外鍵，關聯至 `Users` 表的 `user_id`，角色必須為 'student'。
+  - `course_id`: 外鍵，關聯至 `Courses` 表的 `course_id`。
+  - `booking_time`: 學生進行預約的時間。
+  - `status`: 預約狀態，例如 'confirmed' (已確認), 'cancelled' (已取消), 'leave_requested' (請假申請中), 'leave_approved' (請假已核准), 'attended' (已上課), 'absent' (缺席)。
+  - `reason`: 請假原因或取消原因。
+
+
+CreditTransactions transaction_id (PK), user_id, type, amount, transaction_time, related_booking_id (Nullable), admin_user_id (Nullable), description
+
+紀錄學生的堂數變動歷史，包括購買、預約扣除、請假退還等。
+  - `transaction_id`: 交易唯一識別碼。
+  - `user_id`: 外鍵，關聯至 `Users` 表的 `user_id` (學生)。
+  - `type`: 交易類型，例如 'purchase' (購買), 'deduction' (預約扣除), 'refund_leave' (請假退還), 'admin_add' (管理者手動增加)。
+  - `amount`: 變動的堂數數量 (正數為增加，負數為減少)。
+  - `transaction_time`: 交易發生時間。
+  - `related_booking_id`: 外鍵，若交易與特定預約相關，則關聯至 `Bookings` 表的 `booking_id`。
+  - `admin_user_id`: 外鍵，若為管理者操作，則關聯至 `Users` 表的 `user_id` (管理者)。
+  - `description`: 交易描述。
+
+3. 核心 API 路由規劃
+● POST /auth/login: 驗證 LINE id_token 並核發 JWT。
+● POST /auth/web-login: 網站登入 (使用 email/password)，核發 JWT。
+● POST /auth/register: 學生網站註冊 (可選，若允許學生自行註冊)。
+● GET /api/me/credits: 查詢個人剩餘堂數。
+● GET /api/me/bookings: 查詢個人預約課程列表。
+● POST /api/bookings: 學生預約課程。
+● POST /api/bookings/leave: 學員請假。需包含「當日不可請假」之邏輯判定。
+● GET /admin/students: 管理者查看所有學員上課狀態。
+● PATCH /admin/bookings/confirm: 管理者確認購課轉帳後手動核發堂數。
+4. 實作開發指令 (Jules/Gemini 使用)
+# Step 1: 修改Dockerfile 與 docker-compose.yml 建立基礎環境。
+# Step 2: 依據上述 Schema 建立 SQLAlchemy Models。
+# Step 3: 實作 Flask 路由,並加入日期判斷邏輯:if booking.date == today: return Error.
+
+5. 前端功能規劃
+
+● 學生端 (LINE LIFF / 學生網站)
+  - 登入/註冊 (透過 LINE 或網站帳號)。
+  - 查看個人剩餘堂數。
+  - 查看可預約課程列表 (顯示課程時間、教練、地點、所需堂數、剩餘名額)。
+  - 預約課程 (選擇課程後自動扣除堂數)。
+  - 查看已預約課程列表。
+  - 申請請假 (需符合請假規則，例如「當日不可請假」)。
+  - 查看個人堂數變動紀錄。
+  - 接收自動通知 (預約成功、課程提醒、請假結果等)。
+  
+● 管理者端 (管理者網站)
+  - 登入。
+  - 課程管理:
+    - 新增課程 (設定時間、教練、地點、容量、所需堂數、描述)。
+    - 編輯/取消課程。
+    - 查看所有課程列表及預約狀況。
+    - 可一次排定多堂系列課程 (例如一次10堂) 或單堂彈性課程。
+  - 學員管理:
+    - 查看所有學員列表、剩餘堂數、預約狀態。
+    - 手動核發/扣除學員堂數 (例如確認購課轉帳後核發)。
+    - 查看學員的堂數變動紀錄。
+  - 教練管理:
+    - 新增/編輯教練資料。
+    - 查看教練排課狀況。
+  - 預約管理:
+    - 審核學生請假申請 (若有此流程)。
+    - 確認學生購課轉帳並核發堂數。
+    - 手動調整預約狀態。
+  - 接收自動通知 (付款確認等)。
+  
+6. 業務邏輯與規則
+
+● 堂數管理:
+  - 學生預約課程時，若堂數足夠，則自動扣除相應堂數並將預約狀態變更為 'confirmed'。
+  - 學生請假成功，若該課程堂數已被扣除，則自動退還相應堂數。
+  - 堂數不足時，學生無法預約課程。
+  - 購課轉帳後，管理者需手動核發堂數。
+  - 本系統不處理金流支付，僅記錄堂數變動與預約狀態。
+  
+● 預約與請假規則:
+  - 學生無法指定教練 (由管理者排課時指定)。
+  - 學生請假需在課程開始前提出。課程開始前 24 小時內，課程將被鎖定，學生無法請假，且該堂課的堂數將被扣除。
+  - 課程開始前 24 小時前請假，堂數全額退還，沒有手續費。
+  - 課程容量限制：預約人數不可超過課程容量。
+  - 課程狀態管理：課程取消後，所有相關預約應自動取消並退還堂數。
+  - 管理者可排定系列課程 (例如一次10堂) 或單堂彈性課程。
+  
+● 角色權限:
+  - 學生: 只能操作與自己相關的查詢、預約、請假。
+  - 教練: 暫時不須獨立功能，但保留未來擴展的可能性。
+  - 管理者: 擁有所有管理權限。
+  
+● 自動通知:
+  - 預約成功通知 (LINE)。
+  - 課程提醒通知 (LINE)。
+  - 請假結果通知 (LINE)。
+  - 付款確認通知 (LINE)。
+  
+7. 待確認事項

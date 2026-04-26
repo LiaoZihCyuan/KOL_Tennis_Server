@@ -1,0 +1,57 @@
+services:
+  api:
+    build: .
+    container_name: flask_api_dev
+    command: gunicorn --bind 0.0.0.0:5000 --reload manage:app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - ./migrations:/app/migrations
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app
+      # Override DATABASE_URL to use the service name 'db' from this file
+      DATABASE_URL: postgresql+psycopg://appuser:apppass@db:5432/appdb
+      FLASK_APP: manage.py
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:16
+    container_name: postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+      POSTGRES_DB: appdb
+      TZ: Asia/Taipei
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin_dev
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      TZ: Asia/Taipei
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+volumes:
+  pgdata:
+  pgadmin_data:
