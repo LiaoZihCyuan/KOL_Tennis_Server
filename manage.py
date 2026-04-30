@@ -5,16 +5,8 @@ from extensions import db
 
 # Import all models for Alembic to detect them
 # These imports are crucial for Flask-Migrate to discover your models.
-# As new models are created in the 'models' directory, they should be imported here.
-# Also import the base model for declarative base to be registered.
-# For now, these are placeholders and assume the files will exist in the 'models/' directory.
-import models.user
-import models.course
-import models.booking
-import models.credit_transaction
-
-
-from models.base import Base # Import Base for Alembic to detect models
+# As new models are created, they should be imported here.
+import models
 def create_app():
     app = Flask(__name__)
 
