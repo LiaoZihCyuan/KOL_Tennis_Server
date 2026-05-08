@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+body { font-family: 'Inter', 'Microsoft JhengHei', sans-serif; }
+
+/* 固定側邊欄寬度，防止被右側內容擠壓 */
+aside {
+    flex-shrink: 0;
+    width: 320px;
+    z-index: 20;
+}
+
+/* 課表容器：處理溢出與捲軸 */
+.calendar-main-container {
+    flex: 1;
+    overflow: auto;
+    background: #ffffff;
+    position: relative;
+}
+
+/* 設定課表最小寬度，確保週視圖下場地不會過窄 */
+#calendar {
+    min-width: 1800px; 
+    height: 100%;
+}
+
+/* 調整時間格高度：讓早10晚10的方塊更飽滿 */
+.fc-timegrid-slot {
+    height: 2rem !important; 
+}
+
+/* 標題樣式優化 */
+.fc-col-header-cell-cushion { 
+    padding: 12px 0 !important; 
+    font-size: 1.1rem !important;
+    color: #1e293b !important;
+}
+
+.fc-resource-header-content {
+    font-weight: 600 !important;
+    color: #64748b !important;
+    padding: 6px 0 !important;
+}
+
+/* 課程方塊樣式細節 */
+.fc-v-event .fc-event-main {
+    padding: 8px !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 4px;
+}
+
+.course-title {
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.2;
+    color: #ffffff;
+    white-space: normal;
+    word-break: break-all;
+}
+
+.course-coach {
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    width: fit-content;
+    font-weight: 500;
+}
+
+/* 左側迷你日曆修正 */
+.flatpickr-calendar.inline {
+    width: 100% !important;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+}
+
+/* Modal styles */
+#courseModal {
+    backdrop-filter: blur(4px);
+}

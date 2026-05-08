@@ -31,14 +31,8 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 # Copy the application code into the container
 COPY . .
 
-# Make the entrypoint script executable
-RUN chmod +x /app/entrypoint.sh
-
 # Expose the port the app runs on
 EXPOSE 5000
-
-# Set the entrypoint to our script
-ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Define the command to run the application using Gunicorn
 # This will be passed to the entrypoint script

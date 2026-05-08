@@ -101,8 +101,14 @@
 - 資料庫為 PostgreSQL，ORM 為 Flask-SQLAlchemy（2.0）
 
 ### 進行中任務
-- **總目標**: 
-- **目前進度**:
+- **總目標**: 實作排課行事曆與課程管理功能 (Service, Routes, Auth Middleware)
+- **目前進度**: 
+  1. 已實作 `utils/auth.py`，提供 `admin_required` JWT 驗證 decorator。
+  2. 已實作 `services/course_service.py`，包含新增、查詢、更新與取消課程（連動取消預約並退還堂數）。
+  3. 已實作 `routes/course_routes.py` API，支援排課管理與查詢功能。
+  4. 已於 `manage.py` 註冊 `course_bp` Blueprint。
+  5. **已實作 `templates/calendar.html` 與 `routes/page_routes.py`，提供類似 Google Calendar 的前端課程列表視圖，並串接 `/api/courses`。**
+  等待使用者於本地端測試與確認。
 
 ---
 

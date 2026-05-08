@@ -52,6 +52,17 @@ services:
         condition: service_healthy
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok_dev
+    restart: unless-stopped
+    ports:
+      - "4040:4040"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: http api:5000
+    depends_on:
+      - api
 volumes:
   pgdata:
   pgadmin_data:

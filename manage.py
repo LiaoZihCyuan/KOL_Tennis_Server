@@ -1,40 +1,15 @@
 import os
-from flask import Flask
-from flask_migrate import Migrate
-from extensions import db
+from dotenv import load_dotenv
 
-# Import all models for Alembic to detect them
-# These imports are crucial for Flask-Migrate to discover your models.
-# As new models are created in the 'models' directory, they should be imported here.
-# Also import the base model for declarative base to be registered.
-# For now, these are placeholders and assume the files will exist in the 'models/' directory.
-import models.user
-import models.course
-import models.booking
-import models.credit_transaction
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+
+from __init__ import create_app
 
 
-from models.base import Base # Import Base for Alembic to detect models
-def create_app():
-    app = Flask(__name__)
+config_name = os.getenv('FLASK_CONFIG', 'development')
+app = create_app(config_name)
 
-    # Configuration
-    # Use environment variable for DATABASE_URL, falling back to a default for local development
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-        "DATABASE_URL", "postgresql+psycopg://appuser:apppass@localhost:5432/appdb"
-    )
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False  # Recommended for Flask-SQLAlchemy 2.x
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "a_very_secret_key_for_dev") # Placeholder for a secret key
-
-    # Initialize extensions
-    db.init_app(app)
-    Migrate(app, db)  # Initialize Flask-Migrate with the app and db
-
-    # Register blueprints (example placeholder)
-    # from .api import api_bp
-    # app.register_blueprint(api_bp, url_prefix='/api')
-
-    return app
-
-# Create the Flask application instance, which Gunicorn will use
-app = create_app()
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
