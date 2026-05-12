@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}KOL 網球管理系統 - 新增使用者{% endblock %}
+
+{% block header_title %}新增使用者{% endblock %}
+{% block breadcrumb %}使用者管理{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50">
+        <h2 class="text-lg font-bold text-slate-800">建立新使用者帳號</h2>
+        <p class="text-sm text-slate-500 mt-1">填寫以下資訊來建立新的學員、教練或管理員帳號。</p>
+    </div>
+    
+    <form id="addUserForm" class="p-6 space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 顯示名稱 -->
+            <div class="col-span-1 md:col-span-2">
+                <label class="block text-sm font-bold text-slate-700 mb-1">顯示名稱 / 姓名 <span class="text-rose-500">*</span></label>
+                <input type="text" id="displayName" name="display_name" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="例如: 王小明" required>
+            </div>
+
+            <!-- Email -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Email 信箱</label>
+                <input type="email" id="email" name="email" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="例如: user@example.com">
+            </div>
+
+            <!-- LINE ID -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">LINE ID</label>
+                <input type="text" id="lineId" name="line_id" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="使用者的 LINE ID">
+            </div>
+
+            <!-- 角色 -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">帳號角色 <span class="text-rose-500">*</span></label>
+                <select id="role" name="role" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white" required>
+                    <option value="student" selected>學員 (Student)</option>
+                    <option value="coach">教練 (Coach)</option>
+                    <option value="admin">管理員 (Admin)</option>
+                </select>
+            </div>
+
+            <!-- 初始點數/堂數 -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">初始點數 / 堂數</label>
+                <input type="number" id="credits" name="credits" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value="0" min="0">
+            </div>
+            
+            <!-- 密碼 -->
+            <div class="col-span-1 md:col-span-2">
+                <label class="block text-sm font-bold text-slate-700 mb-1">預設密碼</label>
+                <input type="password" id="password" name="password" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="若不填寫則預設不設定密碼">
+                <p class="text-xs text-slate-500 mt-1">建議之後由使用者自行修改或透過 LINE 登入。</p>
+            </div>
+
+            <!-- 實力等級 (Level) -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">網球實力等級 (1-5)</label>
+                <select id="level" name="level" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white">
+                    <option value="" selected>未設定</option>
+                    <option value="1">1 (初學)</option>
+                    <option value="2">2 (基礎)</option>
+                    <option value="3">3 (中階)</option>
+                    <option value="4">4 (進階)</option>
+                    <option value="5">5 (高手)</option>
+                </select>
+            </div>
+
+            <!-- 偏好場地 -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">偏好場地 (可複選)</label>
+                <div class="flex gap-4 mt-2">
+                    <label class="flex items-center text-sm text-slate-600">
+                        <input type="checkbox" name="preferred_venues" value="室內" class="mr-2 rounded border-slate-300 text-blue-600 focus:ring-blue-500"> 室內
+                    </label>
+                    <label class="flex items-center text-sm text-slate-600">
+                        <input type="checkbox" name="preferred_venues" value="室外" class="mr-2 rounded border-slate-300 text-blue-600 focus:ring-blue-500"> 室外
+                    </label>
+                </div>
+            </div>
+
+            <!-- 備註說明 (Description) -->
+            <div class="col-span-1 md:col-span-2">
+                <label class="block text-sm font-bold text-slate-700 mb-1">備註說明</label>
+                <textarea id="description" name="description" rows="3" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="例如: 選手、休閒玩家..."></textarea>
+            </div>
+        </div>
+
+        <div class="pt-6 border-t border-slate-100 flex justify-end gap-3">
+            <button type="reset" class="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">重設</button>
+            <button type="submit" class="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                新增使用者
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('addUserForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    
+    // 處理複選的場地
+    data.preferred_venues = formData.getAll('preferred_venues');
+    
+    // Parse values
+    data.credits = parseInt(data.credits, 10) || 0;
+    if (!data.password) delete data.password;
+    if (!data.email) delete data.email;
+    if (!data.line_id) delete data.line_id;
+    if (!data.level) delete data.level;
+    if (!data.description) delete data.description;
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '處理中...';
+
+    try {
+        const response = await fetch('/api/users/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('成功：' + result.message);
+            this.reset();
+        } else {
+            alert('錯誤：' + (result.error || '無法新增使用者'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('發生系統錯誤，請稍後再試。');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}KOL 網球管理系統{% endblock %}</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-slate-100 flex h-screen overflow-hidden">
+
+    <aside class="bg-white border-r border-slate-200 flex flex-col shadow-xl w-64 shrink-0">
+        <div class="p-6 border-b border-slate-100 bg-slate-900 text-white">
+            <h1 class="text-xl font-bold flex items-center">
+                <span class="mr-2">🎾</span> KOL 網球管理
+            </h1>
+        </div>
+        
+        <div class="p-4 flex flex-col gap-2 border-b border-slate-100">
+            <a href="/calendar" class="px-4 py-2 rounded-lg text-sm font-medium {% if request.path == '/calendar' %}bg-blue-50 text-blue-600{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                <span class="mr-2">📅</span> 排課系統
+            </a>
+            <a href="/users" class="px-4 py-2 rounded-lg text-sm font-medium {% if request.path == '/users' %}bg-blue-50 text-blue-600{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                <span class="mr-2">👥</span> 使用者列表
+            </a>
+            <a href="/add_user" class="px-4 py-2 rounded-lg text-sm font-medium {% if request.path == '/add_user' %}bg-blue-50 text-blue-600{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                <span class="mr-2">👤</span> 新增使用者
+            </a>
+        </div>
+
+        <div class="p-6 flex-1 overflow-y-auto">
+            {% block sidebar_extra %}{% endblock %}
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
+            <div class="flex items-center gap-4">
+                <span class="text-slate-800 font-bold text-lg">{% block header_title %}系統管理{% endblock %}</span>
+                <nav class="flex text-xs text-slate-400">
+                    <span>管理後台</span>
+                    <span class="mx-2">/</span>
+                    <span class="text-slate-600 font-medium">{% block breadcrumb %}首頁{% endblock %}</span>
+                </nav>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <div class="flex bg-slate-100 rounded-lg p-1 mr-4">
+                    {% block header_actions %}{% endblock %}
+                </div>
+                <div class="text-right border-l pl-4 border-slate-200">
+                    <div class="text-sm font-bold text-slate-700">管理者</div>
+                    <div class="text-[10px] text-slate-400 uppercase tracking-tighter">System Administrator</div>
+                </div>
+            </div>
+        </header>
+        
+        <div class="flex-1 overflow-y-auto {% block main_class %}p-4{% endblock %}">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    {% block modals %}{% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -15,7 +15,8 @@ class CourseService:
         capacity: int,
         location: str,
         credit_cost: int,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        title: Optional[str] = None
     ) -> Course:
         course = Course(
             coach_id=coach_id,
@@ -25,6 +26,7 @@ class CourseService:
             location=location,
             credit_cost=credit_cost,
             description=description,
+            title=title,
             status=CourseStatus.SCHEDULED
         )
         course.save()

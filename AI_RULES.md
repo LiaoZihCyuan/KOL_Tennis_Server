@@ -39,9 +39,9 @@
 ### 專案結構約定
 - `app.py` / `manage.py`：應用程式入口（Application Factory）
 - `extensions.py`：集中定義 `db = SQLAlchemy()` 等擴充套件實例
-- `models/`：資料庫模型
-- `services/`: 服務層 (Business Logic)
-  - 建議依功能模組劃分，例如 `services/user/`, `services/course/`, `services/booking/` 等。
+- `models/`：資料庫模型，負責與 PostgreSQL 溝通。使用 SQLAlchemy 定義 Table Schema 與資料關聯。所有 Model 必須繼承 `BaseModel`。
+- `services/`: 服務層 (Business Logic)。負責串接 Models 並實作具體的商業邏輯（如新增、查詢等），確保資料正確性。這裡不應直接處理 HTTP Request。
+- `routes/`：開放對外的 RESTful API (Flask Blueprints)。負責接收 HTTP Request，解析參數，呼叫對應的 `services/` 執行邏輯，並將結果封裝成 JSON 格式回傳（HTTP Response）。
 - `scripts/`：獨立執行的工具腳本
 
 ### 執行 Python 腳本 (Executing Python Scripts)

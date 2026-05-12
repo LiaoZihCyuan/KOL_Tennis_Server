@@ -35,8 +35,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             return {
                 html: `
-                    <div class="course-title">${student} <span class="font-normal text-[10px] opacity-80">${level}</span></div>
-                    <div class="course-coach">教練：${coach}</div>
+                    <div class="w-full h-full cursor-pointer hover:opacity-90 transition-opacity p-1">
+                        <div class="course-title font-bold">${student} <span class="font-normal text-[10px] opacity-80">${level}</span></div>
+                        <div class="course-coach text-xs">教練：${coach}</div>
+                    </div>
                 `
             };
         },
@@ -46,8 +48,48 @@ document.addEventListener('DOMContentLoaded', function() {
             openCourseModal(info);
         },
 
-        // 測試模擬數據
-        events: getMockData()
+        // 點擊既有課程進入編輯/取消模式
+        eventClick: function(info) {
+            openEditCourseModal(info.event);
+        },
+
+        // 取得資料庫真實數據
+        events: function(fetchInfo, successCallback, failureCallback) {
+            let startStr = fetchInfo.startStr;
+            let endStr = fetchInfo.endStr;
+            fetch(`/api/courses?start_date=${encodeURIComponent(startStr)}&end_date=${encodeURIComponent(endStr)}`)
+                .then(response => response.json())
+                .then(data => {
+                    let mappedEvents = data.map(course => {
+                        let title = course.students && course.students.length > 0 
+                            ? course.students.map(s => s.name).join(', ') 
+                            : ''; // 取消顯示「尚未報名」，統一以有名字才顯示
+                        
+                        let status = course.status || 'normal';
+                        let bgColor = status === 'excused' ? '#f43f5e' : '#3b82f6';
+                        
+                        return {
+                            id: course.course_id,
+                            resourceId: course.location,
+                            title: title,
+                            start: course.start_time,
+                            end: course.end_time,
+                            backgroundColor: bgColor,
+                            extendedProps: {
+                                coach_name: course.coach_name,
+                                coach_id: course.coach_id,
+                                status: status,
+                                level: course.description || ''
+                            }
+                        };
+                    });
+                    successCallback(mappedEvents);
+                })
+                .catch(err => {
+                    console.error('Error fetching courses:', err);
+                    failureCallback(err);
+                });
+        }
     });
 
     calendar.render();
@@ -65,7 +107,33 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化Modal的事件監聽
     initModalEvents();
+    
+    // 載入教練列表
+    fetchCoaches();
 });
+
+function fetchCoaches() {
+    fetch('/api/users/coaches')
+        .then(response => response.json())
+        .then(data => {
+            const coachSelect = document.getElementById('coachName');
+            const editCoachSelect = document.getElementById('editCoachName');
+            
+            data.forEach(coach => {
+                const option = document.createElement('option');
+                option.value = coach.id;
+                option.textContent = coach.display_name;
+                if (coachSelect) coachSelect.appendChild(option);
+                
+                // 同步填充編輯用的下拉選單
+                if (editCoachSelect) {
+                    const editOption = option.cloneNode(true);
+                    editCoachSelect.appendChild(editOption);
+                }
+            });
+        })
+        .catch(err => console.error('Error fetching coaches:', err));
+}
 
 function getMockData() {
     let today = new Date().toISOString().split('T')[0];
@@ -133,6 +201,41 @@ function closeCourseModal() {
     document.getElementById('courseForm').reset();
 }
 
+function openEditCourseModal(event) {
+    const modal = document.getElementById('editCourseModal');
+    if (!modal) {
+        alert('找不到編輯視窗，請確認 calendar.html 已儲存，並嘗試清除瀏覽器快取 (Ctrl+F5)。');
+        return;
+    }
+    
+    const idInput = document.getElementById('editCourseId');
+    if (idInput) idInput.value = event.id;
+    
+    const nameInput = document.getElementById('editStudentName');
+    if (nameInput) nameInput.value = event.title;
+    
+    if (event.extendedProps.coach_id) {
+        const coachInput = document.getElementById('editCoachName');
+        if (coachInput) coachInput.value = event.extendedProps.coach_id;
+    }
+    
+    const statusInput = document.getElementById('editCourseStatus');
+    if (statusInput) statusInput.value = event.extendedProps.status || 'normal';
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeEditCourseModal() {
+    const modal = document.getElementById('editCourseModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    
+    const form = document.getElementById('editCourseForm');
+    if (form) form.reset();
+}
+
 function initModalEvents() {
     document.getElementById('cancelCourseBtn').addEventListener('click', closeCourseModal);
     
@@ -158,27 +261,97 @@ function initModalEvents() {
         const startDateTime = new Date(`${dateStr}T${timeStr}:00`);
         const endDateTime = new Date(startDateTime.getTime() + durationMins * 60000);
         
-        // 決定顏色 (可以隨機或根據教練/程度)
-        const colors = ['#3b82f6', '#a855f7', '#f43f5e', '#10b981', '#f59e0b'];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        
-        // 新增事件到日曆
-        calendar.addEvent({
-            resourceId: currentSelectionInfo.resource ? currentSelectionInfo.resource.id : 'court_in', // 若沒有選擇 resource，預設
-            title: student,
-            start: startDateTime,
-            end: endDateTime,
-            backgroundColor: randomColor,
-            extendedProps: {
-                coach_name: coach,
-                level: level
+        const locationId = currentSelectionInfo.resource ? currentSelectionInfo.resource.id : 'court_in';
+
+        // 準備要送出的資料
+        const payload = {
+            coach_id: coach, // 選單的值已改為 UUID
+            start_time: startDateTime.toISOString(),
+            end_time: endDateTime.toISOString(),
+            capacity: 4, // 預設值
+            location: locationId,
+            credit_cost: 1, // 預設值
+            description: level
+        };
+
+        fetch('/api/courses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('新增課程失敗');
             }
+            return response.json();
+        })
+        .then(data => {
+            alert('課程建立成功！');
+            // 重新取得日曆資料以更新畫面
+            calendar.refetchEvents();
+            
+            // 清除選取範圍並關閉 Modal
+            calendar.unselect();
+            closeCourseModal();
+        })
+        .catch(err => {
+            console.error('Error creating course:', err);
+            alert('新增課程發生錯誤：' + err.message);
         });
-        
-        // 清除選取範圍並關閉 Modal
-        calendar.unselect();
-        closeCourseModal();
     });
+    
+    // 處理編輯課程表單送出
+    const editForm = document.getElementById('editCourseForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const courseId = document.getElementById('editCourseId').value;
+            const payload = {
+                title: document.getElementById('editStudentName').value,
+                coach_id: document.getElementById('editCoachName').value,
+                status: document.getElementById('editCourseStatus').value
+            };
+
+            fetch(`/api/courses/${courseId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('更新課程失敗');
+                return response.json();
+            })
+            .then(data => {
+                alert('課程狀態更新成功！');
+                calendar.refetchEvents();
+                closeEditCourseModal();
+            })
+            .catch(err => alert('更新發生錯誤：' + err.message));
+        });
+    }
+
+    // 處理刪除（取消）課程動作
+    const deleteBtn = document.getElementById('deleteCourseBtn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            if (!confirm('確定要取消此課程嗎？此動作無法復原。')) return;
+            
+            const courseId = document.getElementById('editCourseId').value;
+            fetch(`/api/courses/${courseId}`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('取消課程失敗');
+                alert('課程已成功取消！');
+                calendar.refetchEvents();
+                closeEditCourseModal();
+            })
+            .catch(err => alert('取消發生錯誤：' + err.message));
+        });
+    }
 }
 
 function padZero(num) {

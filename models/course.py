@@ -20,6 +20,7 @@ class Course(BaseModel):
     __tablename__ = "courses"
 
     coach_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     capacity: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -24,14 +24,54 @@ def get_courses():
     return jsonify([{
         "course_id": str(c.id),
         "coach_id": str(c.coach_id),
+        "coach_name": c.coach.display_name if c.coach else "未知",
+        "title": c.title,
         "start_time": c.start_time.isoformat(),
         "end_time": c.end_time.isoformat(),
         "capacity": c.capacity,
         "location": c.location,
         "credit_cost": c.credit_cost,
         "description": c.description,
-        "status": c.status.value
+        "status": c.status.value,
+        "students": [{"id": str(b.student.id), "name": b.student.display_name, "status": b.status.value} for b in c.bookings if b.student]
     } for c in courses]), 200
+
+@course_bp.route("/api/courses", methods=["POST"])
+def create_course_public():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+        
+    required_fields = ["coach_id", "start_time", "end_time", "capacity", "location", "credit_cost"]
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"Missing required field: {field}"}), 400
+            
+    try:
+        coach_id = uuid.UUID(data["coach_id"])
+        start_time = datetime.fromisoformat(data["start_time"])
+        end_time = datetime.fromisoformat(data["end_time"])
+        capacity = int(data["capacity"])
+        credit_cost = int(data["credit_cost"])
+        
+        course = CourseService.create_course(
+            coach_id=coach_id,
+            start_time=start_time,
+            end_time=end_time,
+            capacity=capacity,
+            location=data["location"],
+            credit_cost=credit_cost,
+            description=data.get("description"),
+            title=data.get("title")
+        )
+        return jsonify({
+            "message": "Course created successfully",
+            "course_id": str(course.id)
+        }), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Internal server error"}), 500
 
 @course_bp.route("/admin/courses", methods=["POST"])
 @admin_required
@@ -59,7 +99,8 @@ def create_course():
             capacity=capacity,
             location=data["location"],
             credit_cost=credit_cost,
-            description=data.get("description")
+            description=data.get("description"),
+            title=data.get("title")
         )
         return jsonify({
             "message": "Course created successfully",

@@ -29,7 +29,7 @@ services:
       POSTGRES_DB: appdb
       TZ: Asia/Taipei
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -46,7 +46,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
       TZ: Asia/Taipei
     ports:
-      - "5050:80"
+      - "5051:80"
     depends_on:
       db:
         condition: service_healthy
@@ -54,10 +54,10 @@ services:
       - pgadmin_data:/var/lib/pgadmin
   ngrok:
     image: ngrok/ngrok:latest
-    container_name: ngrok_dev
+    container_name: kol_tennis_ngrok_dev
     restart: unless-stopped
     ports:
-      - "4040:4040"
+      - "4041:4040"
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
     command: http api:5000

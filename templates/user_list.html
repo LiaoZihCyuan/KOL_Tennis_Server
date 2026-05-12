@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}KOL 網球管理系統 - 使用者列表{% endblock %}
+
+{% block header_title %}使用者列表{% endblock %}
+{% block breadcrumb %}使用者管理{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+        <div>
+            <h2 class="text-lg font-bold text-slate-800">所有使用者</h2>
+            <p class="text-sm text-slate-500 mt-1">管理系統中所有的學員、教練及管理員資訊。</p>
+        </div>
+        <a href="/add_user" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            新增使用者
+        </a>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+                <tr>
+                    <th class="px-6 py-4">姓名 (顯示名稱)</th>
+                    <th class="px-6 py-4">角色</th>
+                    <th class="px-6 py-4">LINE ID / Email</th>
+                    <th class="px-6 py-4">實力等級</th>
+                    <th class="px-6 py-4">偏好場地</th>
+                    <th class="px-6 py-4">點數 / 堂數</th>
+                    <th class="px-6 py-4">備註</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody" class="divide-y divide-slate-100">
+                <tr>
+                    <td colspan="7" class="px-6 py-8 text-center text-slate-400">載入中...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', fetchUsers);
+
+async function fetchUsers() {
+    try {
+        const response = await fetch('/api/users/');
+        if (!response.ok) {
+            throw new Error('無法取得使用者資料');
+        }
+        
+        const users = await response.json();
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = '';
+        
+        if (users.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="px-6 py-8 text-center text-slate-400">目前沒有任何使用者資料。</td>
+                </tr>
+            `;
+            return;
+        }
+
+        const roleMap = {
+            'student': '<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">學員</span>',
+            'coach': '<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">教練</span>',
+            'admin': '<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700">管理員</span>'
+        };
+
+        users.forEach(user => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50 transition-colors';
+            
+            // 處理場地標籤
+            let venuesHtml = '<span class="text-slate-400">-</span>';
+            if (user.preferred_venues && user.preferred_venues.length > 0) {
+                venuesHtml = user.preferred_venues.map(v => 
+                    `<span class="px-2 py-0.5 rounded text-xs border border-slate-200 bg-white text-slate-600 mr-1">${v}</span>`
+                ).join('');
+            }
+
+            // 聯絡資訊
+            let contactHtml = '';
+            if (user.line_id) contactHtml += `<div class="text-xs"><span class="text-green-600 font-bold mr-1">L</span> ${user.line_id}</div>`;
+            if (user.email) contactHtml += `<div class="text-xs text-slate-500">${user.email}</div>`;
+            if (!contactHtml) contactHtml = '<span class="text-slate-400">-</span>';
+
+            tr.innerHTML = `
+                <td class="px-6 py-4 font-bold text-slate-800">${user.display_name}</td>
+                <td class="px-6 py-4">${roleMap[user.role] || user.role}</td>
+                <td class="px-6 py-4">${contactHtml}</td>
+                <td class="px-6 py-4">
+                    ${user.level ? `<div class="flex items-center"><span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-700">${user.level}</span></div>` : '<span class="text-slate-400">-</span>'}
+                </td>
+                <td class="px-6 py-4">${venuesHtml}</td>
+                <td class="px-6 py-4 font-mono font-medium">${user.credits}</td>
+                <td class="px-6 py-4 text-xs text-slate-500 max-w-[200px] truncate" title="${user.description || ''}">${user.description || '<span class="text-slate-400">-</span>'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+    } catch (error) {
+        console.error(error);
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="px-6 py-8 text-center text-rose-500 font-medium">資料載入失敗，請稍後再試。</td>
+            </tr>
+        `;
+    }
+}
+</script>
+{% endblock %}
