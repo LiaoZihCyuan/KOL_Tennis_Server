@@ -43,38 +43,70 @@ aside {
 
 /* 課程方塊樣式細節 */
 .fc-v-event .fc-event-main {
-    padding: 8px !important;
+    padding: 2px 4px !important;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 4px;
+    overflow: hidden;
+    white-space: normal !important;
+    word-break: break-word !important;
 }
 
-.course-title {
-    font-weight: 700;
-    font-size: 14px;
-    line-height: 1.2;
-    color: #ffffff;
-    white-space: normal;
-    word-break: break-all;
+.fc-v-event, .fc-event, .fc-event-main-frame, .fc-event-title-container {
+    white-space: normal !important;
+    word-break: break-word !important;
 }
 
-.course-coach {
-    font-size: 12px;
-    background: rgba(255, 255, 255, 0.25);
-    color: #ffffff;
-    padding: 2px 6px;
-    border-radius: 4px;
-    width: fit-content;
-    font-weight: 500;
+.fc-timegrid-event {
+    border-radius: 6px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+    border: none !important;
 }
 
-/* 左側迷你日曆修正 */
+.fc-license-message {
+    display: none !important;
+}
+
+/* 左側迷你日曆修正：完整自適應容器寬度 (週日~週六完整顯示) */
 .flatpickr-calendar.inline {
     width: 100% !important;
-    border: none;
-    box-shadow: none;
-    background: transparent;
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+.flatpickr-calendar .flatpickr-innerContainer,
+.flatpickr-calendar .flatpickr-rContainer,
+.flatpickr-calendar .flatpickr-days,
+.flatpickr-calendar .dayContainer {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+}
+
+.flatpickr-calendar .dayContainer {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: space-around !important;
+}
+
+.flatpickr-calendar .flatpickr-day {
+    max-width: 14.28% !important;
+    flex-basis: 14.28% !important;
+    height: 30px !important;
+    line-height: 30px !important;
+    font-size: 11px !important;
+}
+
+.flatpickr-calendar .flatpickr-weekdays {
+    width: 100% !important;
+}
+
+.flatpickr-calendar .flatpickr-weekday {
+    font-size: 11px !important;
+    max-width: 14.28% !important;
+    flex-basis: 14.28% !important;
 }
 
 /* Modal styles */

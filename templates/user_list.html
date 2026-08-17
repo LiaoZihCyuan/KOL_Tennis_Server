@@ -2,116 +2,299 @@
 
 {% block title %}KOL 網球管理系統 - 使用者列表{% endblock %}
 
-{% block header_title %}使用者列表{% endblock %}
+{% block header_title %}使用者名單管理{% endblock %}
 {% block breadcrumb %}使用者管理{% endblock %}
 
-{% block content %}
-<div class="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
-    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-        <div>
-            <h2 class="text-lg font-bold text-slate-800">所有使用者</h2>
-            <p class="text-sm text-slate-500 mt-1">管理系統中所有的學員、教練及管理員資訊。</p>
-        </div>
-        <a href="/add_user" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+{% block header_actions %}
+    <div class="flex items-center gap-2">
+        <input type="text" id="userSearchInput" oninput="filterUserList()" placeholder="搜尋姓名、電話、LINE..." class="text-xs px-3 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 w-52">
+        <a href="/add_user" class="px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors shadow-xs flex items-center">
+            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
             新增使用者
         </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+        <div>
+            <h2 class="text-base font-bold text-slate-800">所有使用者資料庫</h2>
+            <p class="text-xs text-slate-500 mt-0.5">管理系統中所有學員、教練與管理員之基本資料，支援即時編輯更新。</p>
+        </div>
+        <span id="userTotalBadge" class="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">共 0 位</span>
     </div>
     
     <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-slate-600">
-            <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+            <thead class="bg-slate-50 text-xs font-bold text-slate-500 border-b border-slate-200">
                 <tr>
-                    <th class="px-6 py-4">姓名 (顯示名稱)</th>
+                    <th class="px-6 py-4">姓名</th>
+                    <th class="px-6 py-4">小名 / 暱稱</th>
                     <th class="px-6 py-4">角色</th>
-                    <th class="px-6 py-4">LINE ID / Email</th>
-                    <th class="px-6 py-4">實力等級</th>
-                    <th class="px-6 py-4">偏好場地</th>
+                    <th class="px-6 py-4">聯絡電話</th>
+                    <th class="px-6 py-4">LINE 帳號</th>
+                    <th class="px-6 py-4">性別</th>
                     <th class="px-6 py-4">點數 / 堂數</th>
-                    <th class="px-6 py-4">備註</th>
+                    <th class="px-6 py-4">備註 / 意願</th>
+                    <th class="px-6 py-4 text-right">操作</th>
                 </tr>
             </thead>
-            <tbody id="userTableBody" class="divide-y divide-slate-100">
+            <tbody id="userTableBody" class="divide-y divide-slate-100 font-medium">
                 <tr>
-                    <td colspan="7" class="px-6 py-8 text-center text-slate-400">載入中...</td>
+                    <td colspan="9" class="px-6 py-10 text-center text-slate-400">載入中...</td>
                 </tr>
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Modal: 編輯使用者資料 -->
+<div id="editUserModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
+    <div class="bg-white rounded-2xl shadow-2xl w-[500px] max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0 bg-slate-50 z-10">
+            <h3 class="font-bold text-slate-800 text-base">編輯使用者資料</h3>
+            <button onclick="closeEditUserModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        
+        <form id="editUserForm" class="p-6 space-y-4">
+            <input type="hidden" id="editUserId">
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">姓名 <span class="text-rose-500">*</span></label>
+                    <input type="text" id="editDisplayName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">小名 / 稱呼</label>
+                    <input type="text" id="editNickname" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">聯絡電話</label>
+                    <input type="text" id="editPhone" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">性別</label>
+                    <select id="editGender" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                        <option value="">未設定</option>
+                        <option value="male">男 (Male)</option>
+                        <option value="female">女 (Female)</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">LINE ID</label>
+                    <input type="text" id="editLineId" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">LINE 顯示名稱</label>
+                    <input type="text" id="editLineDisplayName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">剩餘點數</label>
+                    <input type="number" id="editCredits" min="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                    <p class="text-[11px] text-slate-400 mt-1">實際扣點依據（依時數）</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">剩餘堂數</label>
+                    <input type="number" id="editLessonCount" min="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                    <p class="text-[11px] text-slate-400 mt-1">好記顯示用，簽到固定 -1</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">教練代表色 (僅教練)</label>
+                <input type="text" id="editColor" placeholder="#60A5FA" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">備註說明 (想跟教練說的 / 程度)</label>
+                <textarea id="editNotes" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">修改密碼 (若留空則不更改)</label>
+                <input type="password" id="editPassword" placeholder="輸入新密碼..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+            </div>
+
+            <div class="pt-4 flex justify-end gap-2 border-t border-slate-100">
+                <button type="button" onclick="closeEditUserModal()" class="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg">取消</button>
+                <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs">儲存變更</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+let usersData = [];
+
 document.addEventListener('DOMContentLoaded', fetchUsers);
 
 async function fetchUsers() {
     try {
-        const response = await fetch('/api/users/');
-        if (!response.ok) {
-            throw new Error('無法取得使用者資料');
-        }
+        const response = await authFetch('/api/users/');
+        if (!response.ok) throw new Error('無法取得使用者資料');
         
-        const users = await response.json();
-        const tbody = document.getElementById('userTableBody');
-        tbody.innerHTML = '';
-        
-        if (users.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="px-6 py-8 text-center text-slate-400">目前沒有任何使用者資料。</td>
-                </tr>
-            `;
-            return;
-        }
-
-        const roleMap = {
-            'student': '<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">學員</span>',
-            'coach': '<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">教練</span>',
-            'admin': '<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700">管理員</span>'
-        };
-
-        users.forEach(user => {
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-slate-50 transition-colors';
-            
-            // 處理場地標籤
-            let venuesHtml = '<span class="text-slate-400">-</span>';
-            if (user.preferred_venues && user.preferred_venues.length > 0) {
-                venuesHtml = user.preferred_venues.map(v => 
-                    `<span class="px-2 py-0.5 rounded text-xs border border-slate-200 bg-white text-slate-600 mr-1">${v}</span>`
-                ).join('');
-            }
-
-            // 聯絡資訊
-            let contactHtml = '';
-            if (user.line_id) contactHtml += `<div class="text-xs"><span class="text-green-600 font-bold mr-1">L</span> ${user.line_id}</div>`;
-            if (user.email) contactHtml += `<div class="text-xs text-slate-500">${user.email}</div>`;
-            if (!contactHtml) contactHtml = '<span class="text-slate-400">-</span>';
-
-            tr.innerHTML = `
-                <td class="px-6 py-4 font-bold text-slate-800">${user.display_name}</td>
-                <td class="px-6 py-4">${roleMap[user.role] || user.role}</td>
-                <td class="px-6 py-4">${contactHtml}</td>
-                <td class="px-6 py-4">
-                    ${user.level ? `<div class="flex items-center"><span class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-700">${user.level}</span></div>` : '<span class="text-slate-400">-</span>'}
-                </td>
-                <td class="px-6 py-4">${venuesHtml}</td>
-                <td class="px-6 py-4 font-mono font-medium">${user.credits}</td>
-                <td class="px-6 py-4 text-xs text-slate-500 max-w-[200px] truncate" title="${user.description || ''}">${user.description || '<span class="text-slate-400">-</span>'}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-        
+        usersData = await response.json();
+        document.getElementById('userTotalBadge').textContent = `共 ${usersData.length} 位`;
+        renderUserTable(usersData);
     } catch (error) {
-        console.error(error);
-        const tbody = document.getElementById('userTableBody');
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="px-6 py-8 text-center text-rose-500 font-medium">資料載入失敗，請稍後再試。</td>
-            </tr>
+        document.getElementById('userTableBody').innerHTML = `
+            <tr><td colspan="9" class="px-6 py-8 text-center text-rose-500 font-medium">資料載入失敗：${error.message}</td></tr>
         `;
     }
 }
+
+function filterUserList() {
+    const q = document.getElementById('userSearchInput').value.trim().toLowerCase();
+    if (!q) {
+        renderUserTable(usersData);
+        return;
+    }
+    const filtered = usersData.filter(u => 
+        (u.display_name && u.display_name.toLowerCase().includes(q)) ||
+        (u.nickname && u.nickname.toLowerCase().includes(q)) ||
+        (u.phone && u.phone.includes(q)) ||
+        (u.line_id && u.line_id.toLowerCase().includes(q))
+    );
+    renderUserTable(filtered);
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderUserTable(users) {
+    const tbody = document.getElementById('userTableBody');
+    tbody.innerHTML = '';
+    
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-10 text-center text-slate-400">目前沒有符合條件的使用者。</td></tr>';
+        return;
+    }
+
+    const roleMap = {
+        'student': '<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">學員</span>',
+        'coach': '<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">教練</span>',
+        'admin': '<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-700">管理員</span>'
+    };
+
+    const genderMap = {
+        'male': '男',
+        'female': '女',
+        'other': '其他'
+    };
+
+    users.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition-colors';
+        
+        let lineInfo = '-';
+        if (user.line_id) {
+            lineInfo = `<span class="text-xs text-emerald-600 font-bold">L: ${escapeHtml(user.line_id)}</span>`;
+            if (user.line_display_name) lineInfo += `<div class="text-[11px] text-slate-400">(${escapeHtml(user.line_display_name)})</div>`;
+        }
+
+        let nameDisplay = escapeHtml(user.display_name);
+        if (user.color && /^#[0-9a-fA-F]{3,8}$/.test(user.color)) {
+            nameDisplay = `<span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background-color: ${user.color}"></span> ${nameDisplay}</span>`;
+        }
+
+        tr.innerHTML = `
+            <td class="px-6 py-4 font-bold text-slate-800">${nameDisplay}</td>
+            <td class="px-6 py-4 text-slate-600">${escapeHtml(user.nickname) || '-'}</td>
+            <td class="px-6 py-4">${roleMap[user.role] || escapeHtml(user.role)}</td>
+            <td class="px-6 py-4 font-mono text-xs">${escapeHtml(user.phone) || '-'}</td>
+            <td class="px-6 py-4 font-mono">${lineInfo}</td>
+            <td class="px-6 py-4 text-xs">${genderMap[user.gender] || '-'}</td>
+            <td class="px-6 py-4 font-mono"><span class="font-bold text-blue-600">${user.credits} 點</span><span class="text-slate-400"> / ${user.lesson_count ?? 0} 堂</span></td>
+            <td class="px-6 py-4 text-xs text-slate-500 max-w-[200px] truncate" title="${escapeHtml(user.notes || user.description)}">${escapeHtml(user.notes || user.description) || '-'}</td>
+            <td class="px-6 py-4 text-right">
+                <button onclick="openEditUserModal('${user.id}')" class="px-2.5 py-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors">
+                    編輯
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function openEditUserModal(userId) {
+    const user = usersData.find(u => u.id === userId);
+    if (!user) return;
+
+    document.getElementById('editUserId').value = user.id;
+    document.getElementById('editDisplayName').value = user.display_name || '';
+    document.getElementById('editNickname').value = user.nickname || '';
+    document.getElementById('editPhone').value = user.phone || '';
+    document.getElementById('editGender').value = user.gender || '';
+    document.getElementById('editLineId').value = user.line_id || '';
+    document.getElementById('editLineDisplayName').value = user.line_display_name || '';
+    document.getElementById('editCredits').value = user.credits ?? 0;
+    document.getElementById('editLessonCount').value = user.lesson_count ?? 0;
+    document.getElementById('editColor').value = user.color || '';
+    document.getElementById('editNotes').value = user.notes || user.description || '';
+    document.getElementById('editPassword').value = '';
+
+    document.getElementById('editUserModal').classList.remove('hidden');
+    document.getElementById('editUserModal').classList.add('flex');
+}
+
+function closeEditUserModal() {
+    document.getElementById('editUserModal').classList.add('hidden');
+    document.getElementById('editUserModal').classList.remove('flex');
+}
+
+document.getElementById('editUserForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const userId = document.getElementById('editUserId').value;
+    const payload = {
+        display_name: document.getElementById('editDisplayName').value,
+        nickname: document.getElementById('editNickname').value,
+        phone: document.getElementById('editPhone').value,
+        gender: document.getElementById('editGender').value || null,
+        line_id: document.getElementById('editLineId').value,
+        line_display_name: document.getElementById('editLineDisplayName').value,
+        credits: parseInt(document.getElementById('editCredits').value, 10) || 0,
+        lesson_count: parseInt(document.getElementById('editLessonCount').value, 10) || 0,
+        color: document.getElementById('editColor').value,
+        notes: document.getElementById('editNotes').value,
+    };
+
+    const pwd = document.getElementById('editPassword').value;
+    if (pwd) payload.password = pwd;
+
+    try {
+        const res = await authFetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '更新失敗');
+        alert('使用者資料更新成功！');
+        closeEditUserModal();
+        fetchUsers();
+    } catch(err) {
+        alert(err.message);
+    }
+});
 </script>
 {% endblock %}

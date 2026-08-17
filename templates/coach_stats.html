@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}KOL 網球管理系統 - 教練時數統計{% endblock %}
+
+{% block header_title %}教練月度時數與體驗課統計{% endblock %}
+{% block breadcrumb %}教練統計{% endblock %}
+
+{% block header_actions %}
+    <div class="flex items-center gap-2">
+        <select id="yearSelect" class="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 font-medium text-slate-700 focus:outline-none">
+            <option value="2026" selected>2026 年</option>
+            <option value="2027">2027 年</option>
+        </select>
+        <select id="monthSelect" class="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 font-medium text-slate-700 focus:outline-none">
+            <option value="1">1 月</option>
+            <option value="2">2 月</option>
+            <option value="3">3 月</option>
+            <option value="4">4 月</option>
+            <option value="5" selected>5 月</option>
+            <option value="6">6 月</option>
+            <option value="7">7 月</option>
+            <option value="8">8 月</option>
+            <option value="9">9 月</option>
+            <option value="10">10 月</option>
+            <option value="11">11 月</option>
+            <option value="12">12 月</option>
+        </select>
+        <button onclick="fetchCoachStats()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md shadow-xs transition-colors">
+            查詢統計
+        </button>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <!-- 總覽資訊卡 -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div id="cardTotalCoaches" class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">教練總人數</div>
+            <div id="stat-total-coaches" class="text-2xl font-black text-slate-800 mt-1">6 位</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">當月總授課堂數</div>
+            <div id="stat-total-courses" class="text-2xl font-black text-blue-600 mt-1">0 堂</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">當月總上課時數</div>
+            <div id="stat-total-hours" class="text-2xl font-black text-indigo-600 mt-1">0 小時</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">當月體驗課收入</div>
+            <div id="stat-total-revenue" class="text-2xl font-black text-amber-600 mt-1">$0 元</div>
+        </div>
+    </div>
+
+    <!-- 教練詳細統計表格 -->
+    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <div>
+                <h3 id="statsTableTitle" class="font-bold text-slate-800 text-base">各教練授課明細</h3>
+                <p id="statsTableSubtitle" class="text-xs text-slate-500 mt-0.5">自動計算正常排課與體驗課之授課時數與體驗費總額</p>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-xs font-bold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-4">教練姓名</th>
+                        <th class="px-6 py-4">代表色</th>
+                        <th class="px-6 py-4">當月課程堂數</th>
+                        <th class="px-6 py-4">總授課時數 (小時)</th>
+                        <th class="px-6 py-4">體驗課人數</th>
+                        <th class="px-6 py-4">體驗課收費金額</th>
+                    </tr>
+                </thead>
+                <tbody id="coachStatsTableBody" class="divide-y divide-slate-100 font-medium">
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-slate-400">載入中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const now = new Date();
+    document.getElementById('yearSelect').value = now.getFullYear().toString();
+    document.getElementById('monthSelect').value = (now.getMonth() + 1).toString();
+
+    // 教練登入時這個 API 現在只會回傳自己的統計（見 Issue 11），畫面文字也跟著調整，
+    // 不然「教練總人數：1 位」「各教練授課明細」只有自己一行會很奇怪。
+    try {
+        const user = JSON.parse(localStorage.getItem('kol_user') || 'null');
+        if (user && user.role === 'coach') {
+            document.getElementById('cardTotalCoaches').style.display = 'none';
+            document.getElementById('statsTableTitle').textContent = '我的授課明細';
+            document.getElementById('statsTableSubtitle').textContent = '自動計算你本月的授課時數與體驗費總額';
+        }
+    } catch (e) {}
+
+    fetchCoachStats();
+});
+
+async function fetchCoachStats() {
+    const year = document.getElementById('yearSelect').value;
+    const month = document.getElementById('monthSelect').value;
+    const tbody = document.getElementById('coachStatsTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-slate-400">計算中...</td></tr>';
+
+    try {
+        const res = await authFetch(`/api/coaches/stats?year=${year}&month=${month}`);
+        if (!res.ok) throw new Error('無法取得統計資料');
+        const data = await res.json();
+
+        tbody.innerHTML = '';
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-slate-400">無教練資料</td></tr>';
+            return;
+        }
+
+        let totalCourses = 0;
+        let totalHours = 0;
+        let totalRev = 0;
+
+        data.forEach(c => {
+            totalCourses += c.course_count;
+            totalHours += c.total_hours;
+            totalRev += c.trial_revenue;
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/80 transition-colors';
+            tr.innerHTML = `
+                <td class="px-6 py-4 font-bold text-slate-800 flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full" style="background-color: ${c.color};"></span>
+                    ${c.coach_name}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-0.5 rounded text-xs text-white font-mono" style="background-color: ${c.color};">${c.color}</span>
+                </td>
+                <td class="px-6 py-4 font-bold text-slate-700">${c.course_count} 堂</td>
+                <td class="px-6 py-4 font-mono font-bold text-blue-600">${c.total_hours} hr</td>
+                <td class="px-6 py-4 font-mono">${c.trial_count} 人</td>
+                <td class="px-6 py-4 font-mono font-bold text-amber-600">$${c.trial_revenue.toLocaleString()}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('stat-total-coaches').textContent = `${data.length} 位`;
+        document.getElementById('stat-total-courses').textContent = `${totalCourses} 堂`;
+        document.getElementById('stat-total-hours').textContent = `${totalHours.toFixed(1)} 小時`;
+        document.getElementById('stat-total-revenue').textContent = `$${totalRev.toLocaleString()} 元`;
+
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-rose-500">載入失敗：${err.message}</td></tr>`;
+    }
+}
+</script>
+{% endblock %}

@@ -20,6 +20,13 @@
                 <input type="text" id="displayName" name="display_name" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="例如: 王小明" required>
             </div>
 
+            <!-- 電話 -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">電話</label>
+                <input type="tel" id="phone" name="phone" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="例如: 0912345678">
+                <p class="text-xs text-slate-500 mt-1">用於 LINE 綁定登入比對；若下方「預設密碼」留空，將自動以此電話號碼作為預設密碼。</p>
+            </div>
+
             <!-- Email -->
             <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Email 信箱</label>
@@ -42,17 +49,25 @@
                 </select>
             </div>
 
-            <!-- 初始點數/堂數 -->
+            <!-- 初始點數 -->
             <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">初始點數 / 堂數</label>
+                <label class="block text-sm font-bold text-slate-700 mb-1">初始點數</label>
                 <input type="number" id="credits" name="credits" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value="0" min="0">
+                <p class="text-xs text-slate-500 mt-1">實際扣點依據（依課程時數計算，1 小時 = 1 點）。</p>
             </div>
-            
+
+            <!-- 初始堂數 -->
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">初始堂數</label>
+                <input type="number" id="lessonCount" name="lesson_count" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="留空預設等於初始點數" min="0">
+                <p class="text-xs text-slate-500 mt-1">單純「還能上幾堂課」的好記數字，簽到會固定 -1；留空則自動比照點數。</p>
+            </div>
+
             <!-- 密碼 -->
             <div class="col-span-1 md:col-span-2">
                 <label class="block text-sm font-bold text-slate-700 mb-1">預設密碼</label>
-                <input type="password" id="password" name="password" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="若不填寫則預設不設定密碼">
-                <p class="text-xs text-slate-500 mt-1">建議之後由使用者自行修改或透過 LINE 登入。</p>
+                <input type="password" id="password" name="password" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="留空則以電話號碼作為預設密碼">
+                <p class="text-xs text-slate-500 mt-1">留空且已填寫電話時，將自動以電話號碼作為預設密碼；建議之後由使用者自行修改或透過 LINE 登入。</p>
             </div>
 
             <!-- 實力等級 (Level) -->
@@ -112,7 +127,13 @@ document.getElementById('addUserForm').addEventListener('submit', async function
     
     // Parse values
     data.credits = parseInt(data.credits, 10) || 0;
+    if (data.lesson_count) {
+        data.lesson_count = parseInt(data.lesson_count, 10) || 0;
+    } else {
+        delete data.lesson_count;
+    }
     if (!data.password) delete data.password;
+    if (!data.phone) delete data.phone;
     if (!data.email) delete data.email;
     if (!data.line_id) delete data.line_id;
     if (!data.level) delete data.level;
@@ -124,7 +145,7 @@ document.getElementById('addUserForm').addEventListener('submit', async function
     submitBtn.innerHTML = '處理中...';
 
     try {
-        const response = await fetch('/api/users/', {
+        const response = await authFetch('/api/users/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

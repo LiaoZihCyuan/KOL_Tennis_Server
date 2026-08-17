@@ -1,0 +1,538 @@
+{% extends "base.html" %}
+
+{% block title %}學員個人專區 - KOL 網球管理系統{% endblock %}
+
+{% block extra_head %}
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+{% endblock %}
+{% block breadcrumb %}學員專區{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <!-- 個人狀態摘要卡 -->
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-md flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl font-bold border border-white/20">
+                🎾
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h2 id="portalStudentName" class="text-xl font-bold">載入中...</h2>
+                    <span id="portalStudentLevel" class="text-xs bg-white/25 px-2 py-0.5 rounded-full font-medium">中級</span>
+                </div>
+                <p id="portalStudentContact" class="text-xs text-blue-100 mt-1">電話：- | LINE：-</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div class="text-right bg-white/10 px-5 py-3 rounded-xl border border-white/15">
+                <div class="text-xs text-blue-100 font-medium">剩餘上課堂數</div>
+                <div id="portalCredits" class="text-3xl font-black mt-0.5">0 <span class="text-sm font-normal text-blue-200">堂</span></div>
+                <div id="portalPoints" class="text-[11px] text-blue-200 mt-0.5">剩餘 0 點</div>
+            </div>
+            <button onclick="openRenewalModal()" class="px-5 py-3.5 bg-amber-400 hover:bg-amber-300 active:scale-[0.99] text-amber-950 font-black text-sm rounded-xl shadow-md transition-all flex items-center gap-1.5">
+                <span>💳</span> 申請續課儲值
+            </button>
+        </div>
+    </div>
+
+    <!-- 功能切換 Tab -->
+    <div class="flex border-b border-slate-200 gap-2">
+        <button onclick="switchTab('tab-schedule')" id="btn-tab-schedule" class="px-4 py-2.5 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-colors">
+            📅 我的排課與請假
+        </button>
+        <button onclick="switchTab('tab-history')" id="btn-tab-history" class="px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+            📋 出席與扣點歷程
+        </button>
+        <button onclick="switchTab('tab-profile')" id="btn-tab-profile" class="px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+            ⚙️ 修改個人基本資料
+        </button>
+    </div>
+
+    <!-- TAB 1: 我的排課與請假 -->
+    <div id="tab-schedule" class="space-y-4">
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base">近期課程列表</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">若臨時無法出席請點選「申請請假」，小編審核同意後將釋出時段並退還點數；審核前可隨時撤回。</p>
+                </div>
+                <a href="/calendar" class="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1">
+                    前往行事曆查看場地 ↗
+                </a>
+            </div>
+
+            <div id="myScheduleList" class="space-y-3">
+                <div class="p-8 text-center text-slate-400 text-sm">讀取課程中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: 出席與扣點歷程 -->
+    <div id="tab-history" class="hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                <h3 class="font-bold text-slate-800 text-sm mb-3">出席歷程紀錄</h3>
+                <div id="portalAttendanceLog" class="space-y-2 max-h-96 overflow-y-auto pr-1">
+                    <div class="text-center text-xs text-slate-400 py-6">載入中...</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                <h3 class="font-bold text-slate-800 text-sm mb-3">儲值與扣點歷史</h3>
+                <div id="portalTransactionsLog" class="space-y-2 max-h-96 overflow-y-auto pr-1">
+                    <div class="text-center text-xs text-slate-400 py-6">載入中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: 修改個人資料 -->
+    <div id="tab-profile" class="hidden">
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs max-w-xl">
+            <h3 class="font-bold text-slate-800 text-base mb-1">修改個人基本資料</h3>
+            <p class="text-xs text-slate-500 mb-5">維護您的聯絡資訊，以便小編與教練即時聯繫課堂資訊</p>
+
+            <form id="portalProfileForm" class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">姓名 / 稱呼</label>
+                        <input type="text" id="profDisplayName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">小名 / 暱稱</label>
+                        <input type="text" id="profNickname" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">聯絡電話</label>
+                        <input type="text" id="profPhone" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">性別</label>
+                        <select id="profGender" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                            <option value="">未設定</option>
+                            <option value="male">男</option>
+                            <option value="female">女</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">LINE ID</label>
+                        <input type="text" id="profLineId" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">LINE 顯示名稱</label>
+                        <input type="text" id="profLineName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">修改密碼 (若不修改請留空)</label>
+                    <input type="password" id="profPassword" placeholder="輸入新密碼..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                </div>
+
+                <div class="pt-3">
+                    <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors">
+                        儲存個人資料
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: 申請請假 -->
+<div id="leaveModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
+    <div class="bg-white rounded-2xl shadow-2xl w-[420px] p-6 space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-slate-800 text-base">申請課程請假</h3>
+            <button onclick="closeLeaveModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form id="leaveForm" class="space-y-4">
+            <input type="hidden" id="leaveCourseId">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">請假課程</label>
+                <div id="leaveCourseTitle" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700"></div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">請假事由 (選填)</label>
+                <textarea id="leaveReason" rows="2" placeholder="例如: 身體不適、出差、學校考試..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"></textarea>
+            </div>
+
+            <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+                <div class="font-bold">請假須知：</div>
+                <div>1. 送出申請後，將由小編或蔡教練進行審核。</div>
+                <div>2. 小編審核同意後，系統將自動退還 1 堂（若該堂課已扣點，會一併退還對應點數）。</div>
+                <div>3. 在小編審核前，您可隨時於個人專區撤回請假。</div>
+            </div>
+
+            <div class="pt-2 flex justify-end gap-2">
+                <button type="button" onclick="closeLeaveModal()" class="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg">取消</button>
+                <button type="submit" id="leaveSubmitBtn" class="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs">確認送出請假申請</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: 申請續課儲值 -->
+<div id="renewalModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
+    <div class="bg-white rounded-2xl shadow-2xl w-[440px] p-6 space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-slate-800 text-base">申請續課 / 儲值堂數</h3>
+            <button onclick="closeRenewalModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <form id="renewalForm" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">欲購買堂數</label>
+                <select id="renewCredits" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white font-bold text-slate-700">
+                    <option value="5">5 堂課 (NT$ 6,000)</option>
+                    <option value="10" selected>10 堂課 (NT$ 11,000 - 優惠方案)</option>
+                    <option value="20">20 堂課 (NT$ 20,000 - VIP 方案)</option>
+                </select>
+            </div>
+
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1 text-slate-600">
+                <div class="font-bold text-slate-800">匯款帳號資訊：</div>
+                <div>銀行代碼：822 中國信託</div>
+                <div>帳號：9015-4001-2345</div>
+                <div>戶名：KOL 網球運動學院</div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">繳費證明 (轉帳後五碼 / 截圖說明)</label>
+                <textarea id="renewProof" rows="2" placeholder="例如: 已匯款 NT$11,000，末五碼 12345" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" required></textarea>
+            </div>
+
+            <div class="pt-2 flex justify-end gap-2">
+                <button type="button" onclick="closeRenewalModal()" class="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg">取消</button>
+                <button type="submit" id="renewSubmitBtn" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs">送出申請</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentStudentId = null;
+const LIFF_ID = '2011132056-28GhLpgi';
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. 若環境有 LINE LIFF SDK，優先進行 LIFF 自動認證
+    try {
+        if (window.liff) {
+            await liff.init({ liffId: LIFF_ID });
+            if (liff.isLoggedIn()) {
+                const profile = await liff.getProfile();
+                const res = await fetch('/api/auth/line-liff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        line_user_id: profile.userId,
+                        display_name: profile.displayName
+                    })
+                });
+                const data = await res.json();
+                if (data.is_bound) {
+                    localStorage.setItem('kol_token', data.token);
+                    localStorage.setItem('kol_user', JSON.stringify(data.user));
+                } else {
+                    // LINE 尚未綁定手機，導至登入綁定頁
+                    window.location.href = '/login';
+                    return;
+                }
+            }
+        }
+    } catch(err) {
+        console.warn('LIFF check:', err);
+    }
+
+    // 2. 載入當前登入學員資料
+    const userStr = localStorage.getItem('kol_user');
+    if (!userStr) {
+        alert('請先登入學員帳號！');
+        window.location.href = '/login';
+        return;
+    }
+    const user = JSON.parse(userStr);
+    currentStudentId = user.id;
+    await loadStudentFullProfile(user.id);
+});
+
+function switchTab(tabId) {
+    ['tab-schedule', 'tab-history', 'tab-profile'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+        document.getElementById(`btn-${id}`).className = "px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors";
+    });
+    document.getElementById(tabId).classList.remove('hidden');
+    document.getElementById(`btn-${tabId}`).className = "px-4 py-2.5 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-colors";
+}
+
+async function loadStudentFullProfile(userId) {
+    try {
+        const res = await authFetch(`/api/users/${userId}/full-profile`);
+        if (!res.ok) throw new Error('無法讀取學員資料');
+        const data = await res.json();
+        const u = data.user;
+
+        document.getElementById('portalStudentName').textContent = u.display_name;
+        document.getElementById('portalStudentLevel').textContent = u.level ? `等級 ${u.level}` : (u.nickname || '學員');
+        document.getElementById('portalStudentContact').textContent = `電話：${u.phone || '未填'} | LINE：${u.line_id || '未填'}`;
+        document.getElementById('portalCredits').innerHTML = `${u.lesson_count ?? u.credits} <span class="text-sm font-normal text-blue-200">堂</span>`;
+        document.getElementById('portalPoints').textContent = `剩餘 ${u.credits} 點`;
+
+        // Fill Profile form
+        document.getElementById('profDisplayName').value = u.display_name || '';
+        document.getElementById('profNickname').value = u.nickname || '';
+        document.getElementById('profPhone').value = u.phone || '';
+        document.getElementById('profGender').value = u.gender || '';
+        document.getElementById('profLineId').value = u.line_id || '';
+        document.getElementById('profLineName').value = u.line_display_name || '';
+
+        // Render My Schedule
+        const schedBox = document.getElementById('myScheduleList');
+        schedBox.innerHTML = '';
+        if (data.attendance_history.length === 0) {
+            schedBox.innerHTML = '<div class="p-8 text-center text-slate-400 text-sm">目前無已排定課程。</div>';
+        } else {
+            data.attendance_history.forEach(c => {
+                const dt = new Date(c.start_time);
+                const dateStr = dt.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit', weekday: 'short' });
+                const timeStr = dt.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+                
+                const isRequested = (c.status === 'leave_requested');
+                const isApproved = (c.status === 'leave_approved' || c.status === 'cancelled');
+
+                const card = document.createElement('div');
+                card.className = "flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-all bg-slate-50/60";
+                
+                let actionHtml = '';
+                if (isApproved) {
+                    actionHtml = '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-700">✅ 已同意請假 (時段已釋出)</span>';
+                } else if (isRequested) {
+                    actionHtml = `
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 animate-pulse">請假審核中</span>
+                            <button onclick="withdrawLeave('${c.course_id}')" class="px-2.5 py-1 text-xs font-bold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors">
+                                撤回請假
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    actionHtml = `<button onclick="openLeaveModal('${c.course_id}', '${c.course_title}')" class="px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg transition-colors">申請請假</button>`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl flex flex-col items-center justify-center font-bold text-xs ${isApproved ? 'bg-gray-200 text-gray-600' : (isRequested ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700')}">
+                            <span>${dateStr}</span>
+                        </div>
+                        <div>
+                            <div class="font-bold text-slate-800 text-sm">${c.course_title}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">時間：${timeStr} | 教練：${c.coach_name}</div>
+                        </div>
+                    </div>
+                    <div>
+                        ${actionHtml}
+                    </div>
+                `;
+                schedBox.appendChild(card);
+            });
+        }
+
+        // Render Attendance Timeline
+        const attBox = document.getElementById('portalAttendanceLog');
+        attBox.innerHTML = '';
+        if (data.attendance_history.length === 0) {
+            attBox.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">尚無出席記錄</div>';
+        } else {
+            data.attendance_history.forEach(a => {
+                const dt = new Date(a.start_time);
+                const item = document.createElement('div');
+                item.className = "p-2.5 rounded-lg bg-slate-50 border border-slate-100 flex justify-between items-center text-xs";
+                item.innerHTML = `
+                    <div>
+                        <div class="font-bold text-slate-700">${dt.toLocaleString('zh-TW')}</div>
+                        <div class="text-slate-500 text-[11px]">教練: ${a.coach_name}</div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold ${a.status === 'attended' || a.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : (a.status.includes('leave') ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700')}">
+                        ${a.status === 'attended' || a.status === 'completed' ? '出席' : (a.status.includes('leave') ? '已請假' : '排定')}
+                    </span>
+                `;
+                attBox.appendChild(item);
+            });
+        }
+
+        // Render Transactions Log
+        const txBox = document.getElementById('portalTransactionsLog');
+        txBox.innerHTML = '';
+        if (data.transactions.length === 0) {
+            txBox.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">尚無儲值或扣點記錄</div>';
+        } else {
+            data.transactions.forEach(t => {
+                const dt = new Date(t.transaction_time);
+                const item = document.createElement('div');
+                item.className = "p-2.5 rounded-lg bg-slate-50 border border-slate-100 flex justify-between items-center text-xs";
+                const isAdd = t.amount > 0;
+                item.innerHTML = `
+                    <div>
+                        <div class="font-bold text-slate-700">${t.description || '點數異動'}</div>
+                        <div class="text-slate-400 text-[10px]">${dt.toLocaleString('zh-TW')} (經手: ${t.admin_name})</div>
+                    </div>
+                    <span class="font-mono font-bold ${isAdd ? 'text-emerald-600' : 'text-slate-600'}">
+                        ${isAdd ? '+' : ''}${t.amount} 點
+                    </span>
+                `;
+                txBox.appendChild(item);
+            });
+        }
+
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// 請假 Modal 控制
+function openLeaveModal(courseId, courseTitle) {
+    document.getElementById('leaveCourseId').value = courseId;
+    document.getElementById('leaveCourseTitle').textContent = courseTitle || '網球課程';
+    document.getElementById('leaveReason').value = '';
+    document.getElementById('leaveModal').classList.remove('hidden');
+    document.getElementById('leaveModal').classList.add('flex');
+}
+
+function closeLeaveModal() {
+    document.getElementById('leaveModal').classList.add('hidden');
+    document.getElementById('leaveModal').classList.remove('flex');
+}
+
+document.getElementById('leaveForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const courseId = document.getElementById('leaveCourseId').value;
+    const reason = document.getElementById('leaveReason').value || '臨時有事請假';
+    const btn = document.getElementById('leaveSubmitBtn');
+
+    btn.disabled = true;
+    btn.textContent = '傳送中...';
+
+    try {
+        const res = await authFetch(`/api/courses/${courseId}/request-leave`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentStudentId,
+                reason: reason
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '申請失敗');
+        alert(data.message);
+        closeLeaveModal();
+        loadStudentFullProfile(currentStudentId);
+    } catch(err) {
+        alert('請假申請失敗：' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '確認送出請假申請';
+    }
+});
+
+// 撤回請假申請
+async function withdrawLeave(courseId) {
+    if (!confirm('確定要撤回請假申請？撤回後課程將維持正常上課。')) return;
+
+    try {
+        const res = await authFetch(`/api/courses/${courseId}/withdraw-leave`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: currentStudentId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '撤回失敗');
+        alert(data.message);
+        loadStudentFullProfile(currentStudentId);
+    } catch(err) {
+        alert('撤回失敗：' + err.message);
+    }
+}
+
+function openRenewalModal() {
+    document.getElementById('renewalModal').classList.remove('hidden');
+    document.getElementById('renewalModal').classList.add('flex');
+}
+
+function closeRenewalModal() {
+    document.getElementById('renewalModal').classList.add('hidden');
+    document.getElementById('renewalModal').classList.remove('flex');
+}
+
+document.getElementById('renewalForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const credits = parseInt(document.getElementById('renewCredits').value, 10);
+    const proof = document.getElementById('renewProof').value;
+    const btn = document.getElementById('renewSubmitBtn');
+
+    btn.disabled = true;
+    btn.textContent = '傳送中...';
+
+    try {
+        const res = await authFetch('/api/renewals/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: currentStudentId,
+                credits: credits,
+                amount: credits === 5 ? 6000 : (credits === 10 ? 11000 : 20000),
+                payment_proof: proof
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '申請失敗');
+        alert(data.message);
+        closeRenewalModal();
+    } catch(err) {
+        alert('錯誤：' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '送出申請';
+    }
+});
+
+document.getElementById('portalProfileForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const payload = {
+        display_name: document.getElementById('profDisplayName').value,
+        nickname: document.getElementById('profNickname').value,
+        phone: document.getElementById('profPhone').value,
+        gender: document.getElementById('profGender').value || null,
+        line_id: document.getElementById('profLineId').value,
+        line_display_name: document.getElementById('profLineName').value,
+    };
+    const pwd = document.getElementById('profPassword').value;
+    if (pwd) payload.password = pwd;
+
+    try {
+        const res = await authFetch(`/api/users/${currentStudentId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '儲存失敗');
+        alert('個人基本資料已成功更新！');
+        loadStudentFullProfile(currentStudentId);
+    } catch(e) {
+        alert(e.message);
+    }
+});
+</script>
+{% endblock %}

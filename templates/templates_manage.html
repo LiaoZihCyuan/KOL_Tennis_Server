@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}KOL 網球管理系統 - 每週固定課表模板{% endblock %}
+
+{% block header_title %}每週既定課表模板設定{% endblock %}
+{% block breadcrumb %}課表模板{% endblock %}
+
+{% block header_actions %}
+    <div class="flex items-center gap-2">
+        <button onclick="openApplyModal()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1.5">
+            <span>🚀</span> 一鍵套用模板至指定週
+        </button>
+        <button onclick="openCreateModal()" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1.5">
+            <span>➕</span> 新增每週常態課程
+        </button>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-start gap-3">
+        <span class="text-xl">💡</span>
+        <div class="text-xs text-blue-900 leading-relaxed">
+            <strong>每週固定課表說明：</strong> 這裡定義每週預設的學生與教練排班（在學員皆未請假的情況下）。
+            小編或蔡教練只需點選右上角的「一鍵套用模板至指定週」，系統便會自動將固定課表排入該週的行事曆中，無需每週手動重複建立。
+        </div>
+    </div>
+
+    <!-- 模板列表 (按星期分組或整表) -->
+    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800 text-base">目前常態課表清單</h3>
+            <span id="templateCountBadge" class="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">共 0 筆</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-xs font-bold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-4">星期</th>
+                        <th class="px-6 py-4">時段</th>
+                        <th class="px-6 py-4">場地</th>
+                        <th class="px-6 py-4">學生 / 課程名稱</th>
+                        <th class="px-6 py-4">指定教練</th>
+                        <th class="px-6 py-4">類別</th>
+                        <th class="px-6 py-4 text-right">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="templatesTableBody" class="divide-y divide-slate-100 font-medium">
+                    <tr>
+                        <td colspan="7" class="px-6 py-10 text-center text-slate-400">載入中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: 新增常態課程模板 -->
+<div id="createTemplateModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
+    <div class="bg-white rounded-2xl shadow-2xl w-[450px] overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800 text-base">新增每週固定課程模板</h3>
+            <button onclick="closeCreateModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <form id="templateForm" class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">星期</label>
+                    <select id="tmplDay" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" required>
+                        <option value="0">星期一 (Mon)</option>
+                        <option value="1">星期二 (Tue)</option>
+                        <option value="2">星期三 (Wed)</option>
+                        <option value="3">星期四 (Thu)</option>
+                        <option value="4">星期五 (Fri)</option>
+                        <option value="5">星期六 (Sat)</option>
+                        <option value="6">星期日 (Sun)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">場地</label>
+                    <select id="tmplLocation" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" required>
+                        <option value="court_out_1">室外場 1</option>
+                        <option value="court_out_2">室外場 2</option>
+                        <option value="court_in">室內場</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">開始時間</label>
+                    <input type="time" id="tmplStartTime" value="10:00" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">結束時間</label>
+                    <input type="time" id="tmplEndTime" value="11:00" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" required>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">課程名稱 / 班級標籤</label>
+                <input type="text" id="tmplTitle" placeholder="例如: 譚詠𣌀、林子傑、中國醫班" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" required>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">學生 (可複選，需連動既有學生才能正確扣點)</label>
+                <input type="text" id="tmplStudentFilter" placeholder="輸入姓名搜尋..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm mb-1.5">
+                <div id="tmplStudentList" class="border border-slate-200 rounded-lg max-h-40 overflow-y-auto p-2 space-y-1 text-sm">
+                    <p class="text-xs text-slate-400 px-1">載入學生名單中...</p>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1"><span id="tmplStudentCount">已選擇 0 位</span>，多人共班（如家庭班/團體班）可全部勾選。</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">指定教練</label>
+                    <select id="tmplCoach" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white" required>
+                        <option value="" disabled selected>載入中...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">程度 / 備註</label>
+                    <input type="text" id="tmplDescription" placeholder="初級 / 中級" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                </div>
+            </div>
+
+            <div class="pt-4 flex justify-end gap-2 border-t border-slate-100">
+                <button type="button" onclick="closeCreateModal()" class="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg">取消</button>
+                <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs">建立模板</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: 套用模板至指定週 -->
+<div id="applyModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
+    <div class="bg-white rounded-2xl shadow-2xl w-[400px] p-6 space-y-4">
+        <h3 class="font-bold text-slate-800 text-base">套用固定課表至行事曆</h3>
+        <p class="text-xs text-slate-500">選擇欲排入課表的目標週（週一）：</p>
+        
+        <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">選擇該週週一日期</label>
+            <input type="date" id="targetMonday" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" required>
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2">
+            <button type="button" onclick="closeApplyModal()" class="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg">取消</button>
+            <button type="button" onclick="executeApply()" id="applySubmitBtn" class="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs">確認套用</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dayNames = ['星期一 (Mon)', '星期二 (Tue)', '星期三 (Wed)', '星期四 (Thu)', '星期五 (Fri)', '星期六 (Sat)', '星期日 (Sun)'];
+const locNames = {
+    'court_out_1': '室外場 1',
+    'court_out_2': '室外場 2',
+    'court_in': '室內場'
+};
+
+let allStudents = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchTemplates();
+    fetchCoachesForTemplate();
+    fetchStudentsForTemplate();
+
+    const filterInput = document.getElementById('tmplStudentFilter');
+    if (filterInput) {
+        filterInput.addEventListener('input', () => renderStudentCheckboxes(filterInput.value.trim()));
+    }
+});
+
+async function fetchTemplates() {
+    const tbody = document.getElementById('templatesTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">載入中...</td></tr>';
+
+    try {
+        const res = await authFetch('/api/templates');
+        const data = await res.json();
+        tbody.innerHTML = '';
+
+        document.getElementById('templateCountBadge').textContent = `共 ${data.length} 筆`;
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">尚未建立任何常態課表模板</td></tr>';
+            return;
+        }
+
+        data.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/80 transition-colors';
+            const linkedNames = (t.students || []).map(s => s.display_name).join('、');
+            const studentCell = t.title
+                ? `${t.title}${linkedNames ? `<div class="text-[11px] font-normal text-emerald-600">🔗 ${linkedNames}</div>` : '<div class="text-[11px] font-normal text-amber-600">⚠️ 未連動學生資料</div>'}`
+                : (linkedNames || '-');
+            tr.innerHTML = `
+                <td class="px-6 py-4 font-bold text-slate-700">${dayNames[t.day_of_week] || t.day_of_week}</td>
+                <td class="px-6 py-4 font-mono text-xs">${t.start_time} ~ ${t.end_time}</td>
+                <td class="px-6 py-4"><span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700">${locNames[t.location] || t.location}</span></td>
+                <td class="px-6 py-4 font-bold text-slate-800">${studentCell}</td>
+                <td class="px-6 py-4 font-medium flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${t.coach_color || '#3b82f6'};"></span>
+                    ${t.coach_name}
+                </td>
+                <td class="px-6 py-4 text-xs">${t.is_trial ? '<span class="text-amber-600 font-bold">體驗課</span>' : '<span class="text-blue-600">一般課</span>'}</td>
+                <td class="px-6 py-4 text-right">
+                    <button onclick="deleteTemplate('${t.id}')" class="text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded transition-colors">刪除</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-rose-500">載入失敗：${err.message}</td></tr>`;
+    }
+}
+
+async function fetchStudentsForTemplate() {
+    try {
+        const res = await authFetch('/api/users/students');
+        allStudents = await res.json();
+        renderStudentCheckboxes('');
+    } catch (e) {
+        document.getElementById('tmplStudentList').innerHTML = '<p class="text-xs text-rose-500 px-1">學生名單載入失敗</p>';
+    }
+}
+
+function renderStudentCheckboxes(filterText) {
+    const container = document.getElementById('tmplStudentList');
+    const previouslyChecked = new Set(
+        Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)
+    );
+
+    const q = (filterText || '').toLowerCase();
+    const filtered = allStudents.filter(s => !q || (s.display_name && s.display_name.toLowerCase().includes(q)));
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 px-1">找不到符合的學生</p>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(s => `
+        <label class="flex items-center gap-2 px-1 py-0.5 hover:bg-slate-50 rounded cursor-pointer">
+            <input type="checkbox" value="${s.id}" class="tmplStudentCheckbox" ${previouslyChecked.has(s.id) ? 'checked' : ''}>
+            <span>${s.display_name}${s.nickname ? ` (${s.nickname})` : ''}</span>
+        </label>
+    `).join('');
+
+    container.querySelectorAll('.tmplStudentCheckbox').forEach(cb => {
+        cb.addEventListener('change', updateStudentCount);
+    });
+    updateStudentCount();
+}
+
+function updateStudentCount() {
+    const count = document.querySelectorAll('#tmplStudentList .tmplStudentCheckbox:checked').length;
+    document.getElementById('tmplStudentCount').textContent = `已選擇 ${count} 位`;
+}
+
+function getSelectedStudentIds() {
+    return Array.from(document.querySelectorAll('#tmplStudentList .tmplStudentCheckbox:checked')).map(cb => cb.value);
+}
+
+async function fetchCoachesForTemplate() {
+    try {
+        const res = await authFetch('/api/users/coaches');
+        const coaches = await res.json();
+        const sel = document.getElementById('tmplCoach');
+        sel.innerHTML = '<option value="">未指定 (待排教練 / 灰階色)</option>';
+        coaches.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `${c.display_name}`;
+            sel.appendChild(opt);
+        });
+    } catch(e) {}
+}
+
+function openCreateModal() {
+    document.getElementById('createTemplateModal').classList.remove('hidden');
+    document.getElementById('createTemplateModal').classList.add('flex');
+}
+
+function closeCreateModal() {
+    document.getElementById('createTemplateModal').classList.add('hidden');
+    document.getElementById('createTemplateModal').classList.remove('flex');
+    document.getElementById('templateForm').reset();
+    document.getElementById('tmplStudentFilter').value = '';
+    renderStudentCheckboxes('');
+}
+
+document.getElementById('templateForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const studentIds = getSelectedStudentIds();
+    if (studentIds.length === 0) {
+        alert('請至少選擇一位既有學生，才能正確連動扣點（多人共班可全選）。');
+        return;
+    }
+
+    const payload = {
+        day_of_week: parseInt(document.getElementById('tmplDay').value, 10),
+        location: document.getElementById('tmplLocation').value,
+        start_time: document.getElementById('tmplStartTime').value,
+        end_time: document.getElementById('tmplEndTime').value,
+        title: document.getElementById('tmplTitle').value,
+        student_ids: studentIds,
+        coach_id: document.getElementById('tmplCoach').value,
+        description: document.getElementById('tmplDescription').value,
+    };
+
+    try {
+        const res = await authFetch('/api/templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('建立失敗');
+        alert('固定課表建立成功！');
+        closeCreateModal();
+        fetchTemplates();
+    } catch(err) {
+        alert(err.message);
+    }
+});
+
+async function deleteTemplate(id) {
+    if (!confirm('確定刪除此固定課表模板？')) return;
+    try {
+        await authFetch(`/api/templates/${id}`, { method: 'DELETE' });
+        fetchTemplates();
+    } catch(e) {}
+}
+
+function openApplyModal() {
+    // 預設填入下週一
+    const today = new Date();
+    const d = new Date(today);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1) + 7;
+    const nextMon = new Date(d.setDate(diff));
+    document.getElementById('targetMonday').value = nextMon.toISOString().split('T')[0];
+
+    document.getElementById('applyModal').classList.remove('hidden');
+    document.getElementById('applyModal').classList.add('flex');
+}
+
+function closeApplyModal() {
+    document.getElementById('applyModal').classList.add('hidden');
+    document.getElementById('applyModal').classList.remove('flex');
+}
+
+async function executeApply() {
+    const mondayStr = document.getElementById('targetMonday').value;
+    if (!mondayStr) return alert('請選擇週一日期');
+
+    const btn = document.getElementById('applySubmitBtn');
+    btn.disabled = true;
+    btn.textContent = '套用中...';
+
+    try {
+        const res = await authFetch('/api/templates/apply-to-week', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ week_start: mondayStr })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '套用失敗');
+        alert(data.message);
+        closeApplyModal();
+    } catch(err) {
+        alert('錯誤：' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '確認套用';
+    }
+}
+</script>
+{% endblock %}

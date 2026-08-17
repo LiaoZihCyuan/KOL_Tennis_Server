@@ -13,31 +13,62 @@
 
 {% block sidebar_extra %}
     <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">快速跳轉日期</h2>
-    <div id="mini-calendar-container" class="bg-slate-50 rounded-2xl p-2 mb-8 border border-slate-100">
+    <div id="mini-calendar-container" class="bg-slate-50 rounded-2xl p-2 mb-6 border border-slate-100">
         <input type="text" id="mini-calendar" class="hidden">
     </div>
     
-    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">狀態說明</h2>
-    <div class="space-y-3">
-        <div class="flex items-center text-sm font-medium text-slate-600">
-            <span class="w-3 h-3 rounded-full bg-blue-500 mr-3 shadow-sm"></span> 個人班 (Private)
+    <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">教練代表色</h2>
+    <div class="space-y-2 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs">
+        <div class="flex items-center text-slate-700 font-medium">
+            <span class="w-3 h-3 rounded-full mr-2 shadow-sm" style="background-color: #60A5FA;"></span> 王教練 (淺藍)
         </div>
-        <div class="flex items-center text-sm font-medium text-slate-600">
-            <span class="w-3 h-3 rounded-full bg-purple-500 mr-3 shadow-sm"></span> 團體班 (Group)
+        <div class="flex items-center text-slate-700 font-medium">
+            <span class="w-3 h-3 rounded-full mr-2 shadow-sm" style="background-color: #F472B6;"></span> 宋教練 (粉紅)
         </div>
-        <div class="flex items-center text-sm font-medium text-slate-600">
-            <span class="w-3 h-3 rounded-full bg-rose-500 mr-3 shadow-sm"></span> 學員請假 (Excused)
+        <div class="flex items-center text-slate-700 font-medium">
+            <span class="w-3 h-3 rounded-full mr-2 shadow-sm" style="background-color: #FACC15;"></span> 張教練 (黃色)
+        </div>
+        <div class="flex items-center text-slate-700 font-medium">
+            <span class="w-3 h-3 rounded-full mr-2 shadow-sm" style="background-color: #4ADE80;"></span> 柯教練 (綠色)
+        </div>
+        <div class="flex items-center text-slate-700 font-medium">
+            <span class="w-3 h-3 rounded-full mr-2 shadow-sm" style="background-color: #FB923C;"></span> 湯教練 (橘色)
+        </div>
+        <div class="flex items-center text-slate-700 font-medium">
+            <span class="w-3 h-3 rounded-full mr-2 shadow-sm" style="background-color: #2563EB;"></span> 蔡教練 (深藍)
+        </div>
+        <div class="pt-1 border-t border-slate-200 mt-1 space-y-1.5">
+            <div class="flex items-center text-slate-600 font-medium">
+                <span class="w-3 h-3 rounded-full mr-2 bg-slate-500 shadow-sm"></span> 待排教練 / 待排課 (灰階)
+            </div>
+            <div class="flex items-center text-slate-500 font-medium">
+                <span class="w-3 h-3 rounded-full mr-2 bg-gray-300 shadow-sm"></span> 學員請假 (灰色置頂)
+            </div>
         </div>
     </div>
 {% endblock %}
 
-{% block header_title %}週排課總覽看板{% endblock %}
+{% block header_title %}排課總覽看板{% endblock %}
 {% block breadcrumb %}排課系統{% endblock %}
 
 {% block header_actions %}
-    <button onclick="calendar.prev()" class="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-600">◀</button>
-    <button onclick="calendar.today()" class="px-4 py-1.5 hover:bg-white hover:shadow-sm rounded-md text-sm font-bold text-slate-700 transition-all">今天</button>
-    <button onclick="calendar.next()" class="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-600">▶</button>
+    <div class="flex items-center gap-2">
+        <!-- 週次下拉選單 -->
+        <select id="weekSelector" class="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"></select>
+
+        <!-- 日/週 切換按鈕 -->
+        <div class="flex bg-slate-200/80 p-0.5 rounded-lg text-xs">
+            <button id="viewDayBtn" type="button" class="px-3 py-1 rounded-md text-slate-600 font-medium hover:text-slate-900 transition-all">日</button>
+            <button id="viewWeekBtn" type="button" class="px-3 py-1 rounded-md bg-white shadow-sm text-blue-600 font-bold transition-all">週</button>
+        </div>
+
+        <!-- 導航控制 -->
+        <div class="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200/60">
+            <button onclick="calendar.prev()" class="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-600">◀</button>
+            <button onclick="calendar.today()" class="px-3 py-1 hover:bg-white hover:shadow-sm rounded-md text-xs font-bold text-slate-700 transition-all">今天</button>
+            <button onclick="calendar.next()" class="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-600">▶</button>
+        </div>
+    </div>
 {% endblock %}
 
 {% block main_class %}calendar-main-container p-4{% endblock %}
@@ -47,10 +78,10 @@
 {% endblock %}
 
 {% block modals %}
-    <!-- Course Modal -->
+    <!-- Course Modal (新增課程) -->
     <div id="courseModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
-        <div class="bg-white rounded-xl shadow-2xl w-[400px] overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+        <div class="bg-white rounded-xl shadow-2xl w-[440px] max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0 bg-slate-50 z-10">
                 <h3 class="font-bold text-slate-800 text-lg">新增課程</h3>
                 <button onclick="closeCourseModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -74,28 +105,45 @@
                     <select id="courseDuration" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                         <option value="60">1 小時</option>
                         <option value="90">1.5 小時</option>
+                        <option value="120">2 小時</option>
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">學生 (姓名或關鍵字搜尋)</label>
-                    <input type="text" id="studentName" placeholder="蔡長霖" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">學生</label>
+                    <input type="text" id="studentName" list="studentDatalist" placeholder="輸入姓名以搜尋既有學生..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required autocomplete="off">
+                    <datalist id="studentDatalist"></datalist>
+                    <p class="text-[11px] text-slate-400 mt-1">非體驗課請務必從清單中選擇既有學生，才能正確連動扣點；體驗課可直接輸入姓名。</p>
                 </div>
 
                 <div class="flex gap-4">
                     <div class="flex-1">
-                        <label class="block text-xs font-bold text-slate-500 mb-1">程度</label>
-                        <select id="studentLevel" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                            <option value="初級">初級</option>
-                            <option value="中級">中級</option>
-                            <option value="高級">高級</option>
-                        </select>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">程度/備註</label>
+                        <input type="text" id="studentLevel" placeholder="例如: 初級、中級、中國醫班" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                     </div>
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-slate-500 mb-1">教練</label>
                         <select id="coachName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
                             <option value="" disabled selected>請選擇教練</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- 體驗課設定 -->
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
+                    <label class="flex items-center text-xs font-bold text-amber-800 cursor-pointer">
+                        <input type="checkbox" id="isTrial" class="mr-2 rounded text-amber-600 focus:ring-amber-500 w-4 h-4">
+                        此為體驗課 (Trial Lesson)
+                    </label>
+                    <div id="trialFields" class="hidden grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-amber-900 mb-1">體驗人數</label>
+                            <input type="number" id="trialCount" min="1" value="1" class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-amber-900 mb-1">體驗費用 ($NTD)</label>
+                            <input type="number" id="trialFee" min="0" step="50" placeholder="500" class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        </div>
                     </div>
                 </div>
 
@@ -107,10 +155,10 @@
         </div>
     </div>
 
-    <!-- Edit Course Modal -->
+    <!-- Edit Course Modal (編輯課程 / 請假) -->
     <div id="editCourseModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
-        <div class="bg-white rounded-xl shadow-2xl w-[400px] overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+        <div class="bg-white rounded-xl shadow-2xl w-[440px] max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0 bg-slate-50 z-10">
                 <h3 class="font-bold text-slate-800 text-lg">編輯課程</h3>
                 <button onclick="closeEditCourseModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -121,7 +169,7 @@
                 <input type="hidden" id="editCourseId">
                 
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">學生 (統一顯示為學生姓名)</label>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">學生姓名</label>
                     <input type="text" id="editStudentName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
                 </div>
 
@@ -135,14 +183,56 @@
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-slate-500 mb-1">課程狀態</label>
                         <select id="editCourseStatus" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                            <option value="normal">正常 (藍底)</option>
-                            <option value="excused">學生請假 (紅底)</option>
+                            <option value="scheduled">正常 (教練專屬色)</option>
+                            <option value="cancelled">學員請假 (灰色置頂)</option>
+                            <option value="completed">已完成</option>
                         </select>
                     </div>
                 </div>
 
+                <!-- 體驗課設定 (編輯) -->
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
+                    <label class="flex items-center text-xs font-bold text-amber-800 cursor-pointer">
+                        <input type="checkbox" id="editIsTrial" class="mr-2 rounded text-amber-600 focus:ring-amber-500 w-4 h-4">
+                        此為體驗課 (Trial Lesson)
+                    </label>
+                    <div id="editTrialFields" class="hidden grid grid-cols-2 gap-3 pt-1">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-amber-900 mb-1">體驗人數</label>
+                            <input type="number" id="editTrialCount" min="1" value="1" class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-amber-900 mb-1">體驗費用 ($NTD)</label>
+                            <input type="number" id="editTrialFee" min="0" step="50" placeholder="500" class="w-full px-2.5 py-1.5 border border-amber-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 快速操作：課後點名 & 學員請假 -->
+                <div class="space-y-2">
+                    <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex justify-between items-center">
+                        <div>
+                            <div class="text-xs font-bold text-emerald-900">課後點名 (簽到扣點)</div>
+                            <div class="text-[11px] text-emerald-700">完成上課後簽到，自動扣抵 1 堂（依課程時數扣除對應點數）</div>
+                        </div>
+                        <button type="button" id="checkinCourseBtn" class="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs">
+                            ✅ 簽到出席
+                        </button>
+                    </div>
+
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                        <div>
+                            <div class="text-xs font-bold text-slate-700">學員請假處理</div>
+                            <div class="text-[11px] text-slate-500">標記為請假後自動變成灰色，釋出時段</div>
+                        </div>
+                        <button type="button" id="markLeaveBtn" class="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 rounded-lg transition-colors">
+                            標記請假
+                        </button>
+                    </div>
+                </div>
+
                 <div class="pt-4 flex justify-between items-center">
-                    <button type="button" id="deleteCourseBtn" class="px-4 py-2 text-sm font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors">取消此課程</button>
+                    <button type="button" id="deleteCourseBtn" class="px-3 py-2 text-xs font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors">刪除課程</button>
                     <div class="flex gap-2">
                         <button type="button" onclick="closeEditCourseModal()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">取消</button>
                         <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">儲存更新</button>

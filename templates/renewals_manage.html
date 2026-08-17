@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}KOL 網球管理系統 - 審核中心 (請假與續課){% endblock %}
+
+{% block header_title %}營運審核中心 (請假與續課申請){% endblock %}
+{% block breadcrumb %}審核中心{% endblock %}
+
+{% block header_actions %}
+    <div class="flex items-center gap-2">
+        <button onclick="refreshCurrentTab()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md shadow-xs transition-colors">
+            重新整理
+        </button>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <!-- 審核 Tab 切換 -->
+    <div class="flex border-b border-slate-200 gap-2">
+        <button onclick="switchReviewTab('tab-leaves')" id="btn-tab-leaves" class="px-4 py-2.5 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-colors flex items-center gap-2">
+            <span>🏖️</span> 學員請假申請審核
+            <span id="pendingLeaveBadge" class="bg-rose-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+        </button>
+        <button onclick="switchReviewTab('tab-renewals')" id="btn-tab-renewals" class="px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-2">
+            <span>💳</span> 學員續課儲值審核
+            <span id="pendingRenewalBadge" class="bg-amber-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+        </button>
+    </div>
+
+    <!-- TAB 1: 請假申請審核 -->
+    <div id="tab-leaves" class="space-y-4">
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base">待審核請假清單</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">點選「同意請假」後，該課程將自動變為灰色置頂釋出時段，並自動將 1 堂退回學員帳戶（若該堂課已扣點，會一併退還對應點數）</p>
+                </div>
+                <span id="leaveCountBadge" class="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">0 筆待處理</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-xs font-bold text-slate-500 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4">課程時間</th>
+                            <th class="px-6 py-4">學員姓名</th>
+                            <th class="px-6 py-4">教練</th>
+                            <th class="px-6 py-4">場地</th>
+                            <th class="px-6 py-4">請假原因</th>
+                            <th class="px-6 py-4 text-right">審核操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaveRequestsTableBody" class="divide-y divide-slate-100 font-medium">
+                        <tr>
+                            <td colspan="6" class="px-6 py-10 text-center text-slate-400">載入中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: 續課儲值審核 -->
+    <div id="tab-renewals" class="hidden space-y-4">
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-base">學員續課申請清單</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">確認學員匯款證明後點選「核准入點」，系統將自動將堂數存入學員帳戶並記錄交易日誌</p>
+                </div>
+                <span id="pendingCountBadge" class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1 rounded-full">0 筆待處理</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-xs font-bold text-slate-500 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4">申請時間</th>
+                            <th class="px-6 py-4">學員姓名</th>
+                            <th class="px-6 py-4">電話</th>
+                            <th class="px-6 py-4">購買堂數</th>
+                            <th class="px-6 py-4">實收金額</th>
+                            <th class="px-6 py-4">繳費證明 (末五碼/截圖說明)</th>
+                            <th class="px-6 py-4">狀態</th>
+                            <th class="px-6 py-4 text-right">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="renewalsTableBody" class="divide-y divide-slate-100 font-medium">
+                        <tr>
+                            <td colspan="8" class="px-6 py-10 text-center text-slate-400">載入中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentTab = 'tab-leaves';
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchLeaveRequests();
+    fetchRenewals();
+});
+
+function switchReviewTab(tabId) {
+    currentTab = tabId;
+    ['tab-leaves', 'tab-renewals'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+        document.getElementById(`btn-${id}`).className = "px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-2";
+    });
+    document.getElementById(tabId).classList.remove('hidden');
+    document.getElementById(`btn-${tabId}`).className = "px-4 py-2.5 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-colors flex items-center gap-2";
+}
+
+function refreshCurrentTab() {
+    if (currentTab === 'tab-leaves') fetchLeaveRequests();
+    else fetchRenewals();
+}
+
+async function fetchLeaveRequests() {
+    const tbody = document.getElementById('leaveRequestsTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-slate-400">讀取中...</td></tr>';
+
+    try {
+        const res = await authFetch('/api/courses/leave-requests');
+        const data = await res.json();
+        tbody.innerHTML = '';
+
+        const badge = document.getElementById('pendingLeaveBadge');
+        if (data.length > 0) {
+            badge.textContent = data.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+        document.getElementById('leaveCountBadge').textContent = `${data.length} 筆待處理`;
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-slate-400">目前尚無待審核的請假申請</td></tr>';
+            return;
+        }
+
+        const locMap = { 'court_out_1': '室外場 1', 'court_out_2': '室外場 2', 'court_in': '室內場' };
+
+        data.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/80 transition-colors';
+            const dt = r.start_time ? new Date(r.start_time).toLocaleString('zh-TW') : '-';
+
+            tr.innerHTML = `
+                <td class="px-6 py-4 text-xs font-mono font-bold text-slate-700">${dt}</td>
+                <td class="px-6 py-4 font-bold text-slate-800">
+                    <div>${r.student_name}</div>
+                    <div class="text-[11px] text-slate-400 font-mono">${r.student_phone || ''}</div>
+                </td>
+                <td class="px-6 py-4 font-bold text-blue-600">${r.coach_name}</td>
+                <td class="px-6 py-4 text-xs text-slate-600">${locMap[r.location] || r.location}</td>
+                <td class="px-6 py-4 text-xs text-slate-700 bg-amber-50/60 rounded p-2 max-w-xs">${r.reason}</td>
+                <td class="px-6 py-4 text-right space-x-2">
+                    <button onclick="approveLeave('${r.course_id}', '${r.student_name}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors">
+                        ✅ 同意請假並退點
+                    </button>
+                    <button onclick="rejectLeave('${r.course_id}', '${r.student_name}')" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition-colors">
+                        拒絕
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-rose-500">載入失敗：${err.message}</td></tr>`;
+    }
+}
+
+async function approveLeave(courseId, studentName) {
+    if (!confirm(`確定同意 ${studentName} 的請假申請？\n系統將自動：\n1. 將該時段轉為灰色置頂釋出\n2. 退還 1 堂給學員（若已扣點會一併退還對應點數）`)) return;
+
+    try {
+        const res = await authFetch(`/api/courses/${courseId}/approve-leave`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '審核失敗');
+        alert(data.message);
+        fetchLeaveRequests();
+    } catch(err) {
+        alert('錯誤：' + err.message);
+    }
+}
+
+async function rejectLeave(courseId, studentName) {
+    if (!confirm(`確定拒絕 ${studentName} 的請假申請？課程將恢復正常上課狀態。`)) return;
+
+    try {
+        const res = await authFetch(`/api/courses/${courseId}/reject-leave`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '操作失敗');
+        alert(data.message);
+        fetchLeaveRequests();
+    } catch(err) {
+        alert('錯誤：' + err.message);
+    }
+}
+
+async function fetchRenewals() {
+    const tbody = document.getElementById('renewalsTableBody');
+    tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-10 text-center text-slate-400">讀取中...</td></tr>';
+
+    try {
+        const res = await authFetch('/api/renewals/');
+        const data = await res.json();
+        tbody.innerHTML = '';
+
+        const pending = data.filter(d => d.status === 'pending').length;
+        const badge = document.getElementById('pendingRenewalBadge');
+        if (pending > 0) {
+            badge.textContent = pending;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+        document.getElementById('pendingCountBadge').textContent = `${pending} 筆待處理`;
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-10 text-center text-slate-400">目前無續課申請資料</td></tr>';
+            return;
+        }
+
+        data.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/80 transition-colors';
+            const dt = r.created_at ? new Date(r.created_at).toLocaleString('zh-TW') : '-';
+            const isPending = r.status === 'pending';
+
+            tr.innerHTML = `
+                <td class="px-6 py-4 text-xs font-mono text-slate-500">${dt}</td>
+                <td class="px-6 py-4 font-bold text-slate-800">${r.student_name}</td>
+                <td class="px-6 py-4 font-mono text-xs">${r.student_phone || '-'}</td>
+                <td class="px-6 py-4 font-bold text-blue-600">${r.credits_requested} 堂</td>
+                <td class="px-6 py-4 font-mono font-bold text-amber-600">${r.amount_paid ? '$' + r.amount_paid.toLocaleString() : '-'}</td>
+                <td class="px-6 py-4 text-xs text-slate-700 bg-amber-50/50 rounded p-2 max-w-xs">${r.payment_proof || '無說明'}</td>
+                <td class="px-6 py-4">
+                    ${isPending ? '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 animate-pulse">待審核</span>' : '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">已核准</span>'}
+                </td>
+                <td class="px-6 py-4 text-right">
+                    ${isPending ? `<button onclick="approveRenewal('${r.id}', '${r.student_name}', ${r.credits_requested})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors">核准入點</button>` : '<span class="text-xs text-slate-400">已完成</span>'}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(err) {
+        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-rose-500">載入失敗：${err.message}</td></tr>`;
+    }
+}
+
+async function approveRenewal(id, studentName, credits) {
+    if (!confirm(`確定核准 ${studentName} 的續課申請？\n系統將自動為其帳戶存入 ${credits} 堂課。`)) return;
+
+    try {
+        const res = await authFetch(`/api/renewals/${id}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ admin_notes: '小編核准入點' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '核准失敗');
+        alert(data.message);
+        fetchRenewals();
+    } catch(err) {
+        alert('錯誤：' + err.message);
+    }
+}
+</script>
+{% endblock %}

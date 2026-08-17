@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}KOL 網球管理系統 - 學生堂數與出席總覽{% endblock %}
+
+{% block header_title %}學生堂數統計與出席歷程管理{% endblock %}
+{% block breadcrumb %}學生統計{% endblock %}
+
+{% block header_actions %}
+    <div class="flex items-center gap-2">
+        <input type="text" id="searchInput" oninput="filterStudents()" placeholder="搜尋姓名、電話、LINE..." class="text-xs px-3 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 w-52">
+        <a href="/renewals/manage" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1">
+            <span>💳</span> 續課申請審核
+        </a>
+        <button onclick="fetchStudentStats()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md shadow-xs transition-colors">
+            重新整理
+        </button>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <div>
+                <h3 class="font-bold text-slate-800 text-base">學生堂數與出席總覽</h3>
+                <p class="text-xs text-slate-500 mt-0.5">點擊學生姓名可展開完整出席時間軸、儲值交易明細與一鍵複製 LINE 續約通知</p>
+            </div>
+            <span id="studentCountBadge" class="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">共 0 位學員</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-xs font-bold text-slate-500 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-4">學生姓名</th>
+                        <th class="px-6 py-4">小名 / 暱稱</th>
+                        <th class="px-6 py-4">聯絡電話 / LINE</th>
+                        <th class="px-6 py-4">剩餘堂數 (點數)</th>
+                        <th class="px-6 py-4">累計出席</th>
+                        <th class="px-6 py-4">累計請假</th>
+                        <th class="px-6 py-4 text-right">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="studentStatsTableBody" class="divide-y divide-slate-100 font-medium">
+                    <tr>
+                        <td colspan="7" class="px-6 py-10 text-center text-slate-400">載入中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: 學員詳細檔案 & 歷史明細 Drawer -->
+<div id="studentDetailModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
+    <div class="bg-white rounded-2xl shadow-2xl w-[650px] max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0 bg-slate-50 z-10">
+            <div class="flex items-center gap-2">
+                <h3 id="modalStudentName" class="font-bold text-slate-800 text-base">學員詳細檔案</h3>
+                <span id="modalStudentCreditsBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">剩餘 0 堂</span>
+            </div>
+            <button onclick="closeStudentDetailModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- 快速操作區塊 (續課儲值 / 複製 LINE 文案) -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap justify-between items-center gap-3">
+                <div>
+                    <div class="text-xs text-slate-500 font-medium">快捷操作功能</div>
+                    <div class="text-sm font-bold text-slate-700">點數儲值與學員通知</div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="copyLineNotice()" class="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors flex items-center gap-1">
+                        <span>📋</span> 複製 LINE 續約通知
+                    </button>
+                    <button onclick="toggleQuickTopupForm()" class="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1">
+                        <span>➕</span> 儲值堂數
+                    </button>
+                </div>
+            </div>
+
+            <!-- 快速儲值表單 (預設收合) -->
+            <div id="quickTopupBox" class="hidden p-4 rounded-xl bg-blue-50/70 border border-blue-200 space-y-3">
+                <div class="font-bold text-xs text-blue-900">為學員儲值入點 (將自動記錄至交易日誌)</div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">儲值堂數</label>
+                        <input type="number" id="topupCredits" min="1" value="10" class="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">實收金額 ($NTD)</label>
+                        <input type="number" id="topupAmount" min="0" placeholder="11000" class="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">備註說明</label>
+                        <input type="text" id="topupNote" placeholder="臨櫃繳費/轉帳" class="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button onclick="toggleQuickTopupForm()" class="px-3 py-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg">取消</button>
+                    <button onclick="executeQuickTopup()" class="px-3 py-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg">確認儲值入點</button>
+                </div>
+            </div>
+
+            <!-- 基本資料小卡 -->
+            <div class="grid grid-cols-2 gap-3 text-xs bg-white p-4 rounded-xl border border-slate-200">
+                <div><span class="text-slate-400">聯絡電話：</span> <span id="modalPhone" class="font-mono font-bold text-slate-700">-</span></div>
+                <div><span class="text-slate-400">LINE 帳號：</span> <span id="modalLine" class="font-mono font-bold text-emerald-600">-</span></div>
+                <div><span class="text-slate-400">小名 / 暱稱：</span> <span id="modalNickname" class="font-bold text-slate-700">-</span></div>
+                <div><span class="text-slate-400">程度等級：</span> <span id="modalLevel" class="font-bold text-slate-700">-</span></div>
+                <div class="col-span-2"><span class="text-slate-400">固定排課時段：</span> <span id="modalFixedSchedule" class="font-bold text-blue-700">-</span></div>
+                <div class="col-span-2"><span class="text-slate-400">備註說明：</span> <span id="modalNotes" class="text-slate-600">-</span></div>
+            </div>
+
+            <!-- 出席歷程時間軸 -->
+            <div>
+                <h4 class="font-bold text-xs text-slate-700 mb-2 flex items-center justify-between">
+                    <span>📅 出席歷史紀錄 (時間軸)</span>
+                    <span id="modalAttendanceCount" class="text-slate-400 font-normal">共 0 堂</span>
+                </h4>
+                <div id="modalAttendanceTimeline" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    <div class="text-center text-xs text-slate-400 py-6">載入中...</div>
+                </div>
+            </div>
+
+            <!-- 儲值與扣點歷史紀錄 -->
+            <div>
+                <h4 class="font-bold text-xs text-slate-700 mb-2">💰 儲值與扣點明細</h4>
+                <div id="modalTransactionsTimeline" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <div class="text-center text-xs text-slate-400 py-6">載入中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allStudents = [];
+let currentViewingUser = null;
+
+document.addEventListener('DOMContentLoaded', fetchStudentStats);
+
+async function fetchStudentStats() {
+    const tbody = document.getElementById('studentStatsTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">讀取中...</td></tr>';
+
+    try {
+        const res = await authFetch('/api/users/students/stats');
+        if (!res.ok) throw new Error('無法取得學生資料');
+        allStudents = await res.json();
+        document.getElementById('studentCountBadge').textContent = `共 ${allStudents.length} 位學員`;
+        renderTable(allStudents);
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-rose-500">載入失敗：${err.message}</td></tr>`;
+    }
+}
+
+function filterStudents() {
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    if (!query) {
+        renderTable(allStudents);
+        return;
+    }
+    const filtered = allStudents.filter(s => 
+        (s.display_name && s.display_name.toLowerCase().includes(query)) ||
+        (s.nickname && s.nickname.toLowerCase().includes(query)) ||
+        (s.phone && s.phone.includes(query)) ||
+        (s.line_id && s.line_id.toLowerCase().includes(query))
+    );
+    renderTable(filtered);
+}
+
+function renderTable(students) {
+    const tbody = document.getElementById('studentStatsTableBody');
+    tbody.innerHTML = '';
+
+    if (students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">無符合條件的學生</td></tr>';
+        return;
+    }
+
+    students.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition-colors';
+
+        let contact = s.phone || '-';
+        if (s.line_id) contact += ` <span class="text-emerald-600 font-bold ml-1">L: ${s.line_id}</span>`;
+
+        let creditBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800">${s.credits} 堂</span>`;
+        if (s.credits <= 1) {
+            creditBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700">剩餘 ${s.credits} 堂 (需續約)</span>`;
+        } else if (s.credits <= 3) {
+            creditBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">剩餘 ${s.credits} 堂</span>`;
+        }
+
+        tr.innerHTML = `
+            <td class="px-6 py-4">
+                <button onclick="openStudentDetailModal('${s.student_id}')" class="font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-left">
+                    ${s.display_name} <span>🔍</span>
+                </button>
+            </td>
+            <td class="px-6 py-4 text-slate-600">${s.nickname || '-'}</td>
+            <td class="px-6 py-4 text-xs font-mono">${contact}</td>
+            <td class="px-6 py-4">${creditBadge}</td>
+            <td class="px-6 py-4 font-bold text-blue-600">${s.attended_count} 次</td>
+            <td class="px-6 py-4 text-slate-500">${s.leave_count} 次</td>
+            <td class="px-6 py-4 text-right">
+                <button onclick="openStudentDetailModal('${s.student_id}')" class="px-3 py-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors">
+                    查看明細 / 儲值
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function openStudentDetailModal(userId) {
+    document.getElementById('quickTopupBox').classList.add('hidden');
+    document.getElementById('studentDetailModal').classList.remove('hidden');
+    document.getElementById('studentDetailModal').classList.add('flex');
+
+    try {
+        const res = await authFetch(`/api/users/${userId}/full-profile`);
+        if (!res.ok) throw new Error('讀取詳細資料失敗');
+        const data = await res.json();
+        currentViewingUser = data;
+        const u = data.user;
+
+        document.getElementById('modalStudentName').textContent = u.display_name;
+        document.getElementById('modalStudentCreditsBadge').textContent = `剩餘 ${u.credits} 堂課`;
+        document.getElementById('modalPhone').textContent = u.phone || '-';
+        document.getElementById('modalLine').textContent = u.line_id ? `${u.line_id} (${u.line_display_name || ''})` : '-';
+        document.getElementById('modalNickname').textContent = u.nickname || '-';
+        document.getElementById('modalLevel').textContent = u.level ? `第 ${u.level} 級` : '-';
+        document.getElementById('modalNotes').textContent = u.notes || u.description || '-';
+
+        // Fixed schedules
+        const fixBox = document.getElementById('modalFixedSchedule');
+        if (data.fixed_schedules && data.fixed_schedules.length > 0) {
+            fixBox.innerHTML = data.fixed_schedules.map(f => `${f.day_name} ${f.time_range} (${f.coach_name} @ ${f.location_name})`).join(', ');
+        } else {
+            fixBox.textContent = '暫無固定時段模板';
+        }
+
+        // Attendance timeline
+        const attBox = document.getElementById('modalAttendanceTimeline');
+        attBox.innerHTML = '';
+        document.getElementById('modalAttendanceCount').textContent = `共 ${data.attendance_history.length} 堂紀錄`;
+
+        if (data.attendance_history.length === 0) {
+            attBox.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">尚無出席記錄</div>';
+        } else {
+            data.attendance_history.forEach(a => {
+                const dt = new Date(a.start_time);
+                const item = document.createElement('div');
+                item.className = "p-2.5 rounded-lg bg-slate-50 border border-slate-100 flex justify-between items-center text-xs";
+                const isAttended = (a.status === 'attended' || a.status === 'completed');
+                const isLeave = a.status.includes('leave');
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full" style="background-color: ${a.coach_color || '#3b82f6'};"></span>
+                        <div>
+                            <div class="font-bold text-slate-700">${dt.toLocaleString('zh-TW')} - ${a.course_title}</div>
+                            <div class="text-slate-500 text-[11px]">教練: ${a.coach_name}</div>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold ${isAttended ? 'bg-emerald-100 text-emerald-700' : (isLeave ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700')}">
+                        ${isAttended ? '已出席' : (isLeave ? '已請假' : '已排定')}
+                    </span>
+                `;
+                attBox.appendChild(item);
+            });
+        }
+
+        // Transactions log
+        const txBox = document.getElementById('modalTransactionsTimeline');
+        txBox.innerHTML = '';
+        if (data.transactions.length === 0) {
+            txBox.innerHTML = '<div class="text-center text-xs text-slate-400 py-6">尚無儲值或扣點記錄</div>';
+        } else {
+            data.transactions.forEach(t => {
+                const dt = new Date(t.transaction_time);
+                const item = document.createElement('div');
+                item.className = "p-2.5 rounded-lg bg-slate-50 border border-slate-100 flex justify-between items-center text-xs";
+                const isAdd = t.amount > 0;
+                item.innerHTML = `
+                    <div>
+                        <div class="font-bold text-slate-700">${t.description || '點數異動'}</div>
+                        <div class="text-slate-400 text-[10px]">${dt.toLocaleString('zh-TW')} (經手: ${t.admin_name})</div>
+                    </div>
+                    <span class="font-mono font-bold ${isAdd ? 'text-emerald-600' : 'text-slate-600'}">
+                        ${isAdd ? '+' : ''}${t.amount} 堂
+                    </span>
+                `;
+                txBox.appendChild(item);
+            });
+        }
+
+    } catch(err) {
+        alert(err.message);
+    }
+}
+
+function closeStudentDetailModal() {
+    document.getElementById('studentDetailModal').classList.add('hidden');
+    document.getElementById('studentDetailModal').classList.remove('flex');
+}
+
+function toggleQuickTopupForm() {
+    document.getElementById('quickTopupBox').classList.toggle('hidden');
+}
+
+async function executeQuickTopup() {
+    if (!currentViewingUser) return;
+    const credits = parseInt(document.getElementById('topupCredits').value, 10);
+    const amount = parseInt(document.getElementById('topupAmount').value, 10) || 0;
+    const note = document.getElementById('topupNote').value || '手動儲值續課';
+
+    if (!credits || credits <= 0) return alert('請輸入大於 0 的儲值堂數');
+
+    try {
+        const res = await authFetch('/api/renewals/quick-topup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_id: currentViewingUser.user.id,
+                credits: credits,
+                amount: amount,
+                note: note
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '儲值失敗');
+        alert(data.message);
+        toggleQuickTopupForm();
+        openStudentDetailModal(currentViewingUser.user.id);
+        fetchStudentStats();
+    } catch(err) {
+        alert('儲值失敗：' + err.message);
+    }
+}
+
+function copyLineNotice() {
+    if (!currentViewingUser) return;
+    const u = currentViewingUser.user;
+    const text = `【KOL 網球提醒】${u.display_name} 您好！\n提醒您目前剩餘課堂數為 ${u.credits} 堂。\n如需續課可隨時告訴小編為您安排儲值～\n\n【匯款資訊】\n銀行代碼：822 中國信託\n帳號：9015-4001-2345\n戶名：KOL 網球運動學院\n\n感謝您的支持，祝球技進步！🎾`;
+
+    navigator.clipboard.writeText(text).then(() => {
+        alert('已成功複製 LINE 續約提醒訊息！可以直接貼上傳給學員。');
+    }).catch(err => {
+        prompt('請手動複製以下訊息：', text);
+    });
+}
+</script>
+{% endblock %}

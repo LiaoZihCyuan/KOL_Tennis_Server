@@ -218,3 +218,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 .gemini/
+
+# Student PII import data & credentials — contains real names/phone numbers/passwords, never commit
+*.csv
+帳號密碼總表.csv

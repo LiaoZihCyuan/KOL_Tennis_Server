@@ -6,62 +6,237 @@
     <title>{% block title %}KOL 網球管理系統{% endblock %}</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
+    </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-slate-100 flex h-screen overflow-hidden">
+<body class="bg-slate-100 flex h-screen overflow-hidden text-slate-800">
 
-    <aside class="bg-white border-r border-slate-200 flex flex-col shadow-xl w-64 shrink-0">
-        <div class="p-6 border-b border-slate-100 bg-slate-900 text-white">
-            <h1 class="text-xl font-bold flex items-center">
-                <span class="mr-2">🎾</span> KOL 網球管理
-            </h1>
+    <!-- 側邊選單 (Sidebar) -->
+    <!-- 手機版 (<768px) 預設收合成 fixed overlay，靠 -translate-x-full 移出畫面外；
+         md 以上維持原本的 static 排版，跟內容並排顯示，不受收合邏輯影響。 -->
+    <aside id="sidebar" class="bg-white border-r border-slate-200 flex flex-col shadow-lg w-72 shrink-0 z-30 fixed md:static inset-y-0 left-0 h-full -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out">
+        <div class="p-5 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between">
+            <a href="/calendar" class="flex items-center gap-2 group">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-lg shadow-md group-hover:scale-105 transition-transform">
+                    🎾
+                </div>
+                <div>
+                    <h1 class="text-base font-bold tracking-tight">KOL 網球管理</h1>
+                    <p class="text-[10px] text-slate-400 font-medium">Tennis Scheduling System</p>
+                </div>
+            </a>
+            <button onclick="toggleSidebar(false)" class="md:hidden text-white/70 hover:text-white p-1" aria-label="關閉選單">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
         
-        <div class="p-4 flex flex-col gap-2 border-b border-slate-100">
-            <a href="/calendar" class="px-4 py-2 rounded-lg text-sm font-medium {% if request.path == '/calendar' %}bg-blue-50 text-blue-600{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
-                <span class="mr-2">📅</span> 排課系統
-            </a>
-            <a href="/users" class="px-4 py-2 rounded-lg text-sm font-medium {% if request.path == '/users' %}bg-blue-50 text-blue-600{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
-                <span class="mr-2">👥</span> 使用者列表
-            </a>
-            <a href="/add_user" class="px-4 py-2 rounded-lg text-sm font-medium {% if request.path == '/add_user' %}bg-blue-50 text-blue-600{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
-                <span class="mr-2">👤</span> 新增使用者
-            </a>
+        <!-- 主導航選單 -->
+        <div class="p-3 flex flex-col gap-1 border-b border-slate-100 text-sm">
+            <!-- 學員專屬導航 -->
+            <div id="student-menu" class="hidden flex-col gap-1">
+                <div class="text-[11px] font-bold text-slate-400 px-3 py-1 uppercase tracking-wider">學員服務</div>
+                <a href="/student/portal" class="px-3 py-2 rounded-lg font-medium {% if request.path == '/student/portal' %}bg-blue-50 text-blue-600 font-semibold shadow-xs{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                    <span class="mr-2.5 text-base">👤</span> 我的課表與儲值
+                </a>
+                <a href="/calendar" class="px-3 py-2 rounded-lg font-medium {% if request.path == '/calendar' %}bg-blue-50 text-blue-600 font-semibold shadow-xs{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                    <span class="mr-2.5 text-base">📅</span> 全場課表總覽
+                </a>
+            </div>
+
+            <!-- 管理員 / 教練導航 -->
+            <div id="admin-menu" class="flex flex-col gap-1">
+                <div class="text-[11px] font-bold text-slate-400 px-3 py-1 uppercase tracking-wider">核心功能</div>
+                <a href="/calendar" class="px-3 py-2 rounded-lg font-medium {% if request.path == '/calendar' or request.path == '/' %}bg-blue-50 text-blue-600 font-semibold shadow-xs{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                    <span class="mr-2.5 text-base">📅</span> 排課行事曆
+                </a>
+                <a href="/templates" class="admin-only px-3 py-2 rounded-lg font-medium {% if request.path == '/templates' %}bg-blue-50 text-blue-600 font-semibold shadow-xs{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                    <span class="mr-2.5 text-base">🔁</span> 每週固定課表
+                </a>
+
+                <div class="text-[11px] font-bold text-slate-400 px-3 py-1 mt-3 uppercase tracking-wider">審核與統計</div>
+                <a href="/renewals/manage" class="admin-only px-3 py-2 rounded-lg font-medium {% if request.path == '/renewals/manage' %}bg-blue-50 text-blue-600 font-semibold shadow-xs{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                    <span class="mr-2.5 text-base">⚖️</span> 審核中心 (請假/續課)
+                </a>
+                <a href="/coaches/stats" class="px-3 py-2 rounded-lg font-medium {% if request.path == '/coaches/stats' %}bg-blue-50 text-blue-600 font-semibold shadow-xs{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                    <span class="mr-2.5 text-base">📊</span> 教練時數統計
+                </a>
+                <a href="/students/stats" class="admin-only px-3 py-2 rounded-lg font-medium {% if request.path == '/students/stats' %}bg-blue-50 text-blue-600 font-semibold shadow-xs{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                    <span class="mr-2.5 text-base">📋</span> 學生堂數與出席
+                </a>
+
+                <div class="text-[11px] font-bold text-slate-400 px-3 py-1 mt-3 uppercase tracking-wider admin-only">人員資料庫</div>
+                <a href="/users" class="admin-only px-3 py-2 rounded-lg font-medium {% if request.path == '/users' %}bg-blue-50 text-blue-600 font-semibold shadow-xs{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                    <span class="mr-2.5 text-base">👥</span> 使用者名單
+                </a>
+                <a href="/add_user" class="admin-only px-3 py-2 rounded-lg font-medium {% if request.path == '/add_user' %}bg-blue-50 text-blue-600 font-semibold shadow-xs{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %} transition-colors flex items-center">
+                    <span class="mr-2.5 text-base">👤</span> 新增使用者
+                </a>
+            </div>
         </div>
 
-        <div class="p-6 flex-1 overflow-y-auto">
+        <div class="p-4 flex-1 overflow-y-auto">
             {% block sidebar_extra %}{% endblock %}
         </div>
     </aside>
 
+    <!-- 手機版選單背景遮罩：點擊可關閉選單，md 以上永遠隱藏 -->
+    <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="hidden md:hidden fixed inset-0 bg-slate-900/50 z-20"></div>
+
+    <!-- 主工作區 (Main Content) -->
     <main class="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
-            <div class="flex items-center gap-4">
+        <!-- 頂端導航列 -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-xs z-10 shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar(true)" class="md:hidden -ml-1 mr-1 p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors" aria-label="開啟選單">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
                 <span class="text-slate-800 font-bold text-lg">{% block header_title %}系統管理{% endblock %}</span>
                 <nav class="flex text-xs text-slate-400">
-                    <span>管理後台</span>
-                    <span class="mx-2">/</span>
+                    <span>後台</span>
+                    <span class="mx-1.5">/</span>
                     <span class="text-slate-600 font-medium">{% block breadcrumb %}首頁{% endblock %}</span>
                 </nav>
             </div>
             
-            <div class="flex items-center space-x-3">
-                <div class="flex bg-slate-100 rounded-lg p-1 mr-4">
-                    {% block header_actions %}{% endblock %}
-                </div>
-                <div class="text-right border-l pl-4 border-slate-200">
-                    <div class="text-sm font-bold text-slate-700">管理者</div>
-                    <div class="text-[10px] text-slate-400 uppercase tracking-tighter">System Administrator</div>
+            <div class="flex items-center gap-3">
+                {% block header_actions %}{% endblock %}
+
+                <!-- 使用者狀態與登出 -->
+                <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+                    <div id="user-info-box" class="text-right">
+                        <div id="user-display-name" class="text-xs font-bold text-slate-700">管理員 / 小編</div>
+                        <div id="user-role-badge" class="text-[10px] text-blue-600 font-semibold uppercase tracking-wider">ADMIN</div>
+                    </div>
+                    <button id="auth-action-btn" onclick="handleAuthAction()" class="px-2.5 py-1 text-xs text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-md transition-all">
+                        切換帳號
+                    </button>
                 </div>
             </div>
         </header>
         
-        <div class="flex-1 overflow-y-auto {% block main_class %}p-4{% endblock %}">
+        <div class="flex-1 overflow-y-auto {% block main_class %}p-6{% endblock %}">
             {% block content %}{% endblock %}
         </div>
     </main>
 
     {% block modals %}{% endblock %}
+    
+    <script>
+        // 所有呼叫自家 /api/... 的 fetch 都應該用這個，會自動帶上登入 token，
+        // 並且在 token 失效/過期 (401) 時自動導回登入頁。
+        function authFetch(url, options) {
+            options = options || {};
+            const token = localStorage.getItem('kol_token');
+            options.headers = Object.assign({}, options.headers || {}, token ? { 'Authorization': 'Bearer ' + token } : {});
+            return fetch(url, options).then(res => {
+                if (res.status === 401) {
+                    localStorage.removeItem('kol_token');
+                    localStorage.removeItem('kol_user');
+                    window.location.href = '/login';
+                }
+                return res;
+            });
+        }
+
+        function checkAuthState() {
+            const userStr = localStorage.getItem('kol_user');
+            let user = null;
+            if (userStr) {
+                try {
+                    user = JSON.parse(userStr);
+                    document.getElementById('user-display-name').textContent = user.display_name;
+                    document.getElementById('user-role-badge').textContent = user.role.toUpperCase();
+                    
+                    if (user.role === 'student') {
+                        document.getElementById('user-role-badge').className = "text-[10px] text-emerald-600 font-semibold uppercase tracking-wider";
+                        document.getElementById('student-menu').classList.remove('hidden');
+                        document.getElementById('student-menu').classList.add('flex');
+                        document.getElementById('admin-menu').classList.add('hidden');
+                    } else if (user.role === 'coach') {
+                        document.getElementById('user-role-badge').className = "text-[10px] text-purple-600 font-semibold uppercase tracking-wider";
+                        document.getElementById('student-menu').classList.add('hidden');
+                        document.getElementById('admin-menu').classList.remove('hidden');
+                        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+                    } else {
+                        document.getElementById('user-role-badge').className = "text-[10px] text-blue-600 font-semibold uppercase tracking-wider";
+                        document.getElementById('student-menu').classList.add('hidden');
+                        document.getElementById('admin-menu').classList.remove('hidden');
+                        document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+                    }
+                    document.getElementById('auth-action-btn').textContent = '登出';
+                } catch(e) {}
+            } else {
+                document.getElementById('user-display-name').textContent = '訪客 / 未登入';
+                document.getElementById('user-role-badge').textContent = 'GUEST';
+                document.getElementById('auth-action-btn').textContent = '登入';
+            }
+
+            // 嚴格權限路由防護 (Route Guard)
+            enforceRoutePermissions(user);
+        }
+
+        function enforceRoutePermissions(user) {
+            const currentPath = window.location.pathname;
+            const adminOnlyPaths = ['/users', '/add_user', '/templates', '/renewals/manage', '/students/stats'];
+
+            // 未登入：所有繼承 base.html 的頁面（含 /calendar）一律導回登入頁，
+            // 不用逐一列出路徑，避免漏掉（之前 /calendar 就是漏掉才能在未登入時被讀取）。
+            if (!user) {
+                window.location.href = '/login';
+                return;
+            } else if (user.role === 'student') {
+                // 學員嘗試存取管理者後台
+                if (adminOnlyPaths.includes(currentPath) || currentPath === '/coaches/stats') {
+                    alert('【權限不足】此頁面為管理人員專屬後台，學員無法存取。已為您導回學員個人專區。');
+                    window.location.href = '/student/portal';
+                    return;
+                }
+            } else if (user.role === 'coach') {
+                // 教練嘗試存取小編管理者專屬後台
+                if (adminOnlyPaths.includes(currentPath)) {
+                    alert('【權限不足】此頁面為管理員專屬後台，教練無法存取。已為您導回行事曆。');
+                    window.location.href = '/calendar';
+                    return;
+                }
+            }
+        }
+
+        // 手機版側邊選單開關 (issue-10)：md 以上這個函式不會被觸發（按鈕本身 md:hidden），
+        // sidebar 在 md 以上維持 md:translate-x-0/md:static，不受這裡切換的 class 影響。
+        function toggleSidebar(open) {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (open) {
+                sidebar.classList.remove('-translate-x-full');
+                sidebar.classList.add('translate-x-0');
+                backdrop.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                sidebar.classList.remove('translate-x-0');
+                backdrop.classList.add('hidden');
+            }
+        }
+
+        function handleAuthAction() {
+            const userStr = localStorage.getItem('kol_user');
+            if (userStr) {
+                if (confirm('確定要登出系統嗎？')) {
+                    localStorage.removeItem('kol_token');
+                    localStorage.removeItem('kol_user');
+                    window.location.href = '/login';
+                }
+            } else {
+                window.location.href = '/login';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', checkAuthState);
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
