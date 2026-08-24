@@ -82,6 +82,20 @@
         <div class="p-4 flex-1 overflow-y-auto">
             {% block sidebar_extra %}{% endblock %}
         </div>
+
+        <!-- 使用者狀態與登出：原本放在右上角 header，但在手機上會多佔一整列，
+             把課表可用高度吃掉一截；移到側邊欄底部後 header 少一列，單日課表
+             才塞得進一個畫面（方便整天截圖）。桌機側邊欄本來就常駐，放這裡
+             一樣看得到。 -->
+        <div class="p-3 border-t border-slate-100 flex items-center justify-between gap-2 shrink-0">
+            <div id="user-info-box" class="min-w-0">
+                <div id="user-display-name" class="text-xs font-bold text-slate-700 truncate">管理員 / 小編</div>
+                <div id="user-role-badge" class="text-[10px] text-blue-600 font-semibold uppercase tracking-wider">ADMIN</div>
+            </div>
+            <button id="auth-action-btn" onclick="handleAuthAction()" class="shrink-0 px-2.5 py-1 text-xs text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-md transition-all">
+                切換帳號
+            </button>
+        </div>
     </aside>
 
     <!-- 手機版選單背景遮罩：點擊可關閉選單，md 以上永遠隱藏 -->
@@ -105,17 +119,6 @@
             
             <div class="flex items-center gap-3">
                 {% block header_actions %}{% endblock %}
-
-                <!-- 使用者狀態與登出 -->
-                <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
-                    <div id="user-info-box" class="text-right">
-                        <div id="user-display-name" class="text-xs font-bold text-slate-700">管理員 / 小編</div>
-                        <div id="user-role-badge" class="text-[10px] text-blue-600 font-semibold uppercase tracking-wider">ADMIN</div>
-                    </div>
-                    <button id="auth-action-btn" onclick="handleAuthAction()" class="px-2.5 py-1 text-xs text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-md transition-all">
-                        切換帳號
-                    </button>
-                </div>
             </div>
         </header>
         

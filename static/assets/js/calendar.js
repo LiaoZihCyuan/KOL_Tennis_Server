@@ -6,6 +6,18 @@ function isMobileViewport() {
     return window.matchMedia('(max-width: 768px)').matches;
 }
 
+// 單日檢視一律用場地格狀（三個場地＝三欄，手機寬度放得下），這樣一眼就能看出
+// 哪個場地有課、幾點有課、是哪位教練，也方便直接截圖給教練看當天的課表。
+// 單週檢視在手機上維持清單：7 天 × 3 場地 = 21 欄，格狀在手機上只會被壓到
+// 完全看不清楚，只能橫向捲動。
+function dayViewName() {
+    return 'resourceTimeGridDay';
+}
+
+function weekViewName() {
+    return isMobileViewport() ? 'listWeek' : 'resourceTimeGridWeek';
+}
+
 const locNames = {
     'court_out_1': '室外場 1',
     'court_out_2': '室外場 2',
@@ -26,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     calendar = new FullCalendar.Calendar(calendarEl, {
         locale: 'zh-tw',
-        initialView: isMobileViewport() ? 'listDay' : 'resourceTimeGridWeek',
+        initialView: isMobileViewport() ? dayViewName() : 'resourceTimeGridWeek',
         datesAboveResources: true,
         
         resources: [
@@ -39,9 +51,13 @@ document.addEventListener('DOMContentLoaded', function() {
         slotMaxTime: '22:00:00',
         
         allDaySlot: false,
-        headerToolbar: false, 
+        headerToolbar: false,
         stickyHeaderDates: true,
-        expandRows: true,
+        // 桌機讓時間列撐滿容器高度比較好看；手機關掉，因為 expandRows 算出來的
+        // 列高會比實際可用高度多出約 20px，導致時間格內部出現捲軸、看不到最後
+        // 一個時段。關掉之後改由 calendar.css 的 .fc-timegrid-slot 固定格高
+        // 控制，整天 10:00~22:00 一定塞得進一個畫面，方便直接截圖給教練。
+        expandRows: !isMobileViewport(),
         selectable: isAdmin, // 僅 Admin 可點選排課
         editable: isAdmin,   // 僅 Admin 支援直接拖曳調課 (Drag & Drop)
         selectMirror: true,
@@ -56,22 +72,18 @@ document.addEventListener('DOMContentLoaded', function() {
         listDayFormat: { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' },
         listDaySideFormat: false,
 
-        // 手機/桌機切換時，自動切換場地格狀檢視 <-> 單日/單週清單檢視，
-        // 場地格狀在手機寬度下會被迫橫向捲動，清單檢視則是直向捲動、
-        // 更適合閱讀「某一天的詳細排課情形」。只在跨越斷點時才切換，
+        // 跨越手機/桌機斷點時，把目前「日或週」的意圖對應到該斷點該用的檢視
+        // （單週在手機上是清單、其餘都是場地格狀）。只在真的需要換檢視時才切，
         // 避免使用者在同一斷點內縮放視窗時被打斷。
         windowResize: function(arg) {
             // windowResize 的參數是 { view } 包裝物件，不是 View 本身——直接讀
             // arg.type 會是 undefined，讓下面的判斷整段失效（呼叫端在斷點切換
             // 時完全沒反應），要透過 arg.view.type 才拿得到目前的檢視名稱。
-            const mobile = isMobileViewport();
             const viewType = arg.view.type;
-            const isListView = viewType.startsWith('list');
-            if (mobile && !isListView) {
-                calendar.changeView(viewType === 'resourceTimeGridDay' ? 'listDay' : 'listWeek');
-            } else if (!mobile && isListView) {
-                calendar.changeView(viewType === 'listDay' ? 'resourceTimeGridDay' : 'resourceTimeGridWeek');
-            }
+            const isWeek = viewType === 'listWeek' || viewType === 'resourceTimeGridWeek';
+            const want = isWeek ? weekViewName() : dayViewName();
+            calendar.setOption('expandRows', !isMobileViewport());
+            if (viewType !== want) calendar.changeView(want);
         },
 
         // 拖曳調課事件處理 (Drag & Drop)
@@ -497,14 +509,14 @@ function initViewToggle() {
 
     if (dayBtn) {
         dayBtn.addEventListener('click', function() {
-            calendar.changeView(isMobileViewport() ? 'listDay' : 'resourceTimeGridDay');
+            calendar.changeView(dayViewName());
             dayBtn.className = "px-3 py-1 rounded-md bg-white shadow-sm text-blue-600 font-bold transition-all";
             weekBtn.className = "px-3 py-1 rounded-md text-slate-600 font-medium hover:text-slate-900 transition-all";
         });
     }
     if (weekBtn) {
         weekBtn.addEventListener('click', function() {
-            calendar.changeView(isMobileViewport() ? 'listWeek' : 'resourceTimeGridWeek');
+            calendar.changeView(weekViewName());
             weekBtn.className = "px-3 py-1 rounded-md bg-white shadow-sm text-blue-600 font-bold transition-all";
             dayBtn.className = "px-3 py-1 rounded-md text-slate-600 font-medium hover:text-slate-900 transition-all";
         });

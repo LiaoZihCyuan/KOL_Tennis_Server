@@ -188,8 +188,9 @@ aside {
 }
 
 @media (max-width: 768px) {
-    /* 這個斷點下一律改用 list 檢視顯示單日/單週明細（見 calendar.js
-       isMobileViewport），不再需要靠寬度撐開場地格狀表格。 */
+    /* 桌機版的 #calendar min-width:1800px 是為了「單週 × 3 場地 = 21 欄」撐出
+       來的；手機只會出現單日格狀（3 欄）或單週清單，兩者都應該剛好塞滿螢幕寬
+       度、不要有橫向捲軸。 */
     #calendar {
         min-width: unset !important;
         width: 100%;
@@ -197,6 +198,41 @@ aside {
 
     .fc-col-header-cell-cushion {
         font-size: 0.9rem !important;
+    }
+
+    /* 手機單日場地格狀：把時間軸壓窄、格高縮短，讓 10:00~22:00 一整天剛好能
+       在一個畫面內看完（方便直接截圖整天課表給教練，不用捲動拼兩張），三個
+       場地欄位也才有足夠寬度。 */
+    .fc-timegrid-slot {
+        height: 1.25rem !important;
+    }
+
+    .fc-timegrid-axis,
+    .fc-timegrid-slot-label {
+        font-size: 0.65rem !important;
+    }
+
+    /* 表格儲存格的 height 只是「最小值」，時間標籤的文字高度會把整列撐高，
+       所以光設 .fc-timegrid-slot 的 height 沒有用，必須連標籤的 line-height
+       和 padding 一起壓掉，列高才真的降得下來。 */
+    .fc-timegrid-axis-frame,
+    .fc-timegrid-slot-label-frame,
+    .fc-timegrid-slot-label-cushion {
+        padding: 0 2px !important;
+        line-height: 1 !important;
+    }
+
+    /* 場地欄標題在窄螢幕要留得住，不要被截斷 */
+    .fc-resource-header-content {
+        font-size: 0.7rem !important;
+        padding: 4px 0 !important;
+        white-space: normal !important;
+        line-height: 1.2 !important;
+    }
+
+    /* 課程方塊內的文字縮一級，讓學生名字＋教練名在窄欄位裡仍讀得到 */
+    .fc-timegrid-event .fc-event-main > div {
+        padding: 1px 2px !important;
     }
 
     .course-title {
