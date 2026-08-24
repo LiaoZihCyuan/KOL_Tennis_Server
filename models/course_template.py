@@ -21,7 +21,6 @@ class CourseTemplate(BaseModel):
     capacity: Mapped[int] = mapped_column(Integer, default=4, nullable=False)
     location: Mapped[str] = mapped_column(String(255), default="court_out_1", nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    credit_cost: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     is_trial: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     trial_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     trial_fee: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

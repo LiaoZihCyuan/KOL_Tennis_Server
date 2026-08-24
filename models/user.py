@@ -29,12 +29,9 @@ class User(BaseModel):
     email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False)
-    # credits is the real, spendable balance (1 credit == 1 hour of lesson, see
-    # CourseService.hours_to_credit_cost). lesson_count is a plain "how many
-    # lessons left" counter kept in lockstep with credits purely so admins/
-    # students have a number that matches how they naturally think about
-    # bookings ("N 堂") without a duration-based calculation — it is never
-    # itself checked to decide whether a booking is allowed.
+    # credits / lesson_count are a manually-managed balance (topped up via
+    # renewals, adjusted directly in 使用者管理) — courses no longer have a
+    # point cost, so nothing here is auto-deducted at booking/checkin time.
     credits: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     lesson_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 

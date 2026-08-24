@@ -86,7 +86,6 @@ def get_courses():
                 "end_time": c.end_time.isoformat(),
                 "capacity": c.capacity,
                 "location": c.location,
-                "credit_cost": 0,
                 "description": "",
                 "status": "busy",
                 "leave_status": leave_status,
@@ -107,7 +106,6 @@ def get_courses():
                 "end_time": c.end_time.isoformat(),
                 "capacity": c.capacity,
                 "location": c.location,
-                "credit_cost": c.credit_cost,
                 "description": c.description,
                 "status": c.status.value,
                 "leave_status": leave_status,
@@ -138,7 +136,7 @@ def create_course_public():
     student_id_str = data.get("student_id")
 
     if not is_trial and not student_id_str:
-        return jsonify({"error": "非體驗課必須從既有學生名單中選擇學生，才能正確連動扣點"}), 400
+        return jsonify({"error": "非體驗課必須從既有學生名單中選擇學生"}), 400
 
     try:
         coach_id_str = data.get("coach_id")
@@ -147,12 +145,7 @@ def create_course_public():
         start_time = datetime.fromisoformat(data["start_time"])
         end_time = datetime.fromisoformat(data["end_time"])
         capacity = int(data["capacity"])
-
-        if data.get("credit_cost"):
-            credit_cost = round(float(data["credit_cost"]))
-        else:
-            duration_minutes = (end_time - start_time).total_seconds() / 60
-            credit_cost = CourseService.hours_to_credit_cost(duration_minutes)
+        is_recurring = bool(data.get("is_recurring", False))
 
         course = CourseService.create_course(
             coach_id=coach_id,
@@ -160,16 +153,19 @@ def create_course_public():
             end_time=end_time,
             capacity=capacity,
             location=data["location"],
-            credit_cost=credit_cost,
             description=data.get("description"),
             title=data.get("title"),
             is_trial=is_trial,
             trial_count=int(data["trial_count"]) if data.get("trial_count") else None,
             trial_fee=int(data["trial_fee"]) if data.get("trial_fee") else None,
-            student_id=student_id
+            student_id=student_id,
+            is_recurring=is_recurring
         )
+        message = "Course created successfully"
+        if is_recurring and not is_trial:
+            message += "，已同步建立固定課表，之後每週會自動排入這位學生"
         return jsonify({
-            "message": "Course created successfully",
+            "message": message,
             "course_id": str(course.id)
         }), 201
     except ValueError as e:
@@ -200,12 +196,18 @@ def update_course_public(course_id):
             data["trial_count"] = int(data["trial_count"])
         if "trial_fee" in data and data["trial_fee"]:
             data["trial_fee"] = int(data["trial_fee"])
-            
+        if "is_recurring" in data:
+            data["is_recurring"] = bool(data["is_recurring"])
+
+        is_recurring = bool(data.get("is_recurring", False))
         course = CourseService.update_course(c_id, admin_id=g.current_user.id, **data)
         if not course:
             return jsonify({"error": "Course not found"}), 404
-            
-        return jsonify({"message": "Course updated successfully"}), 200
+
+        message = "Course updated successfully"
+        if is_recurring and not course.is_trial:
+            message += "，已同步建立/連動固定課表"
+        return jsonify({"message": message}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -222,26 +224,17 @@ def reschedule_course(course_id):
     try:
         c_id = uuid.UUID(course_id)
 
-        old_course = Course.get(c_id)
-        if not old_course or old_course.deleted_at is not None:
-            return jsonify({"error": "Course not found"}), 404
-        old_credit_cost = old_course.credit_cost
-
         course = CourseService.reschedule_course(
             c_id,
             admin_id=g.current_user.id,
             start_time=datetime.fromisoformat(data["start_time"]) if "start_time" in data else None,
             end_time=datetime.fromisoformat(data["end_time"]) if "end_time" in data else None,
-            location=data.get("location"),
-            credit_cost=round(float(data["credit_cost"])) if data.get("credit_cost") is not None else None
+            location=data.get("location")
         )
         if not course:
             return jsonify({"error": "Course not found"}), 404
 
-        message = "調課成功！"
-        if course.credit_cost != old_credit_cost:
-            message += f"（課程時長變更，點數已由 {old_credit_cost} 點調整為 {course.credit_cost} 點；若已有學員簽到扣點，已一併校正）"
-        return jsonify({"message": message}), 200
+        return jsonify({"message": "調課成功！"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -445,15 +438,12 @@ def delete_course_public(course_id):
         if not course:
             return jsonify({"error": "Course not found"}), 404
 
-        refunded_count = CourseService.cleanup_bookings_before_delete(c_id, admin_id=g.current_user.id)
+        CourseService.cleanup_bookings_before_delete(c_id, admin_id=g.current_user.id)
 
         course.soft_delete()
         Course.commit()
 
-        message = "Course deleted successfully"
-        if refunded_count:
-            message += f"，已自動退還 {refunded_count} 筆已扣點紀錄的點數"
-        return jsonify({"message": message}), 200
+        return jsonify({"message": "Course deleted successfully"}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -511,7 +501,6 @@ def get_templates():
             "capacity": t.capacity,
             "location": t.location,
             "description": t.description,
-            "credit_cost": t.credit_cost,
             "is_trial": t.is_trial,
             "trial_count": t.trial_count,
             "trial_fee": t.trial_fee
@@ -530,7 +519,7 @@ def create_template():
     student_ids_raw = data.get("student_ids") or []
 
     if not is_trial and not student_ids_raw:
-        return jsonify({"error": "非體驗課必須從既有學生名單中選擇至少一位學生，才能正確連動扣點"}), 400
+        return jsonify({"error": "非體驗課必須從既有學生名單中選擇至少一位學生"}), 400
 
     try:
         coach_id_str = data.get("coach_id")
@@ -544,14 +533,6 @@ def create_template():
             if found_count != len(student_uuids):
                 return jsonify({"error": "選擇的學生資料中有無法辨識的項目，請重新選擇"}), 400
 
-        if data.get("credit_cost"):
-            credit_cost = round(float(data["credit_cost"]))
-        else:
-            sh, sm = [int(p) for p in data["start_time"].split(":")]
-            eh, em = [int(p) for p in data["end_time"].split(":")]
-            duration_minutes = (eh * 60 + em) - (sh * 60 + sm)
-            credit_cost = CourseService.hours_to_credit_cost(duration_minutes)
-
         tmpl = CourseTemplate(
             coach_id=coach_id,
             title=data.get("title"),
@@ -562,7 +543,6 @@ def create_template():
             capacity=int(data.get("capacity", 4)),
             location=data.get("location", "court_out_1"),
             description=data.get("description"),
-            credit_cost=credit_cost,
             is_trial=is_trial,
             trial_count=int(data["trial_count"]) if data.get("trial_count") else None,
             trial_fee=int(data["trial_fee"]) if data.get("trial_fee") else None,

@@ -115,30 +115,84 @@ aside {
 }
 
 /* Responsive styles */
+/* 1024px 以下（含平板寬度）側邊欄一律收合成可點擊展開的浮動抽屜，不要疊在主
+   內容「上方」佔掉排課區域的高度——側邊選單原本疊上去時內容一長就會蓋到課表
+   （使用者名單/新增使用者蓋到行事曆）。這裡把 Tailwind 原本只在 <768px 生效
+   的抽屜模式（fixed + -translate-x-full，由 toggleSidebar() 切換）延伸到
+   1024px，讓平板寬度也能把整個畫面高度留給當天課表，選單改成點漢堡鈕才展開。
+   #sidebar/#sidebar-backdrop 用 ID 選擇器蓋掉 base.html 內 md: 前綴（768px）
+   的 Tailwind class，不動 body/main 版面——aside 變成 fixed 之後本來就不佔
+   flow 空間，不需要再讓 main 或 header 跟著調整。 */
 @media (max-width: 1024px) {
-    body {
-        flex-direction: column !important;
-        overflow: auto !important;
-        height: auto !important;
+    #sidebar {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        height: 100% !important;
+        max-height: 100% !important;
+        width: 85% !important;
+        max-width: 320px;
+        z-index: 40;
+        transform: translateX(-100%);
+        border-right: 1px solid #e2e8f0 !important;
+        border-bottom: none !important;
     }
 
-    aside {
-        width: 100% !important;
-        max-height: 40vh;
-        flex-shrink: 1 !important;
-        border-right: none !important;
-        border-bottom: 1px solid #e2e8f0;
+    #sidebar.translate-x-0 {
+        transform: translateX(0) !important;
     }
 
-    main {
-        overflow: visible !important;
+    main > header button[onclick="toggleSidebar(true)"],
+    #sidebar button[onclick="toggleSidebar(false)"] {
+        display: inline-flex !important;
+    }
+
+    #sidebar-backdrop:not(.hidden) {
+        display: block !important;
+    }
+
+    /* main > header 的型別選擇器 specificity 比 Tailwind 的 .h-16 類別低，
+       不加 !important 的話 height:auto 會直接被 .h-16 的 4rem 蓋掉，變成
+       column 排列但高度被鎖死在 64px，內容會被硬擠在一起/被裁切。 */
+    main > header {
+        flex-direction: column;
+        align-items: flex-start;
         height: auto !important;
+        padding: 0.75rem 1rem !important;
+        gap: 0.5rem;
+    }
+
+    /* 標題列與操作列各自佔滿一整行，並讓內部按鈕/下拉選單在放不下時「整組換行」，
+       而不是被裁掉或撐出橫向捲軸（舊選擇器 .flex.items-center.space-x-3
+       對不到 calendar.html 實際用的 gap-2/gap-3 class，等於沒作用）。內層每個
+       按鈕/選單群組要 flex-shrink:0，不然瀏覽器會先把它們擠扁（連文字都被
+       擠到直排）才換行，而不是整個保持原寬度、直接換到下一行。 */
+    main > header > div {
+        width: 100%;
+        flex-wrap: wrap;
+        row-gap: 0.5rem;
+    }
+
+    /* calendar.html 自己的 header_actions 內層（週次選單/日週切換/導航/新增課程
+       按鈕那一排）也要能整組換行，不然上面那條 main > header > div 規則只讓
+       「整個 header_actions 區塊」跟著外層換行，區塊內部這些項目本身還是擠在
+       同一行、直接被裁掉。 */
+    #calendarHeaderActions {
+        flex-wrap: wrap;
+        row-gap: 0.5rem;
+    }
+
+    #calendarHeaderActions > * {
+        flex-shrink: 0;
     }
 }
 
 @media (max-width: 768px) {
+    /* 這個斷點下一律改用 list 檢視顯示單日/單週明細（見 calendar.js
+       isMobileViewport），不再需要靠寬度撐開場地格狀表格。 */
     #calendar {
-        min-width: 800px;
+        min-width: unset !important;
+        width: 100%;
     }
 
     .fc-col-header-cell-cushion {
@@ -153,23 +207,25 @@ aside {
         font-size: 10px;
     }
 
-    main > header {
-        flex-direction: column;
-        height: auto;
-        padding: 1rem;
-        gap: 0.5rem;
-    }
-
-    .flex.items-center.space-x-3 {
-        flex-wrap: wrap;
-        justify-content: center;
-        width: 100%;
-        margin-top: 0.5rem;
-    }
-
-    #courseModal > div {
+    #courseModal > div,
+    #editCourseModal > div {
         width: 90% !important;
         max-width: 400px;
         margin: 0 auto;
+    }
+
+    /* 手機單日/單週清單檢視：加大觸控區塊、拉開列與列之間的間距 */
+    .fc-list-event td {
+        padding: 0.6rem 0.5rem !important;
+    }
+
+    .fc-list-day-cushion {
+        padding: 0.6rem 0.75rem !important;
+        font-size: 0.9rem !important;
+    }
+
+    .fc-list-event-time {
+        font-size: 0.75rem !important;
+        white-space: nowrap;
     }
 }

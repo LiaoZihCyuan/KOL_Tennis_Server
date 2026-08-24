@@ -6,6 +6,7 @@ from extensions import db
 from models.user import User, UserRole, Gender
 from models.booking import Booking, BookingStatus
 from models.course import Course
+from services.course_service import to_taipei
 
 
 class UserService:
@@ -171,7 +172,9 @@ class UserService:
 
             for b in bookings:
                 c = b.course
-                date_str = c.start_time.strftime("%Y-%m-%d %H:%M") if c else ""
+                # 一律轉台北時間再顯示，否則出缺席紀錄會顯示 UTC 時間（台北
+                # 10:00 的課會顯示成 02:00），跟行事曆上看到的時間對不起來。
+                date_str = to_taipei(c.start_time).strftime("%Y-%m-%d %H:%M") if c else ""
                 coach_name = c.coach.display_name if c and c.coach else "未知"
                 entry = f"{date_str} ({coach_name})"
 

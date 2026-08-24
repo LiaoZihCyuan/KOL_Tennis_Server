@@ -26,7 +26,6 @@ class Course(BaseModel):
     capacity: Mapped[int] = mapped_column(Integer, nullable=False)
     location: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    credit_cost: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[CourseStatus] = mapped_column(SQLEnum(CourseStatus), default=CourseStatus.SCHEDULED, nullable=False)
     
     # Trial lesson fields

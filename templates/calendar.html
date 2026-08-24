@@ -52,7 +52,13 @@
 {% block breadcrumb %}排課系統{% endblock %}
 
 {% block header_actions %}
-    <div class="flex items-center gap-2">
+    <div id="calendarHeaderActions" class="flex items-center gap-2">
+        <!-- 手動新增課程：拖曳選取在清單檢視（手機版）下無法使用，所以需要一個
+             永遠看得到、點了就能開啟新增課程視窗的按鈕，桌面版也能用。 -->
+        <button id="addCourseBtn" type="button" class="admin-only px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1">
+            <span>＋</span> 新增課程
+        </button>
+
         <!-- 週次下拉選單 -->
         <select id="weekSelector" class="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"></select>
 
@@ -68,6 +74,10 @@
             <button onclick="calendar.today()" class="px-3 py-1 hover:bg-white hover:shadow-sm rounded-md text-xs font-bold text-slate-700 transition-all">今天</button>
             <button onclick="calendar.next()" class="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-600">▶</button>
         </div>
+
+        <!-- 目前顯示的日期/週期：headerToolbar 關掉了 FullCalendar 自己的標題，
+             清單檢視在當天沒有課時完全不會顯示日期，這裡補一個永遠看得到的標籤 -->
+        <span id="currentDateLabel" class="text-sm font-bold text-slate-700 px-1 whitespace-nowrap"></span>
     </div>
 {% endblock %}
 
@@ -92,7 +102,7 @@
                 <div class="flex gap-4">
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-slate-500 mb-1">日期</label>
-                        <input type="date" id="courseDate" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required readonly>
+                        <input type="date" id="courseDate" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
                     </div>
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-slate-500 mb-1">開始時間</label>
@@ -100,20 +110,30 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">課程時間長度</label>
-                    <select id="courseDuration" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                        <option value="60">1 小時</option>
-                        <option value="90">1.5 小時</option>
-                        <option value="120">2 小時</option>
-                    </select>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">課程時間長度</label>
+                        <select id="courseDuration" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <option value="60">1 小時</option>
+                            <option value="90">1.5 小時</option>
+                            <option value="120">2 小時</option>
+                        </select>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">場地</label>
+                        <select id="courseLocation" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <option value="court_out_1">室外場 1</option>
+                            <option value="court_out_2">室外場 2</option>
+                            <option value="court_in">室內場</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">學生</label>
                     <input type="text" id="studentName" list="studentDatalist" placeholder="輸入姓名以搜尋既有學生..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required autocomplete="off">
                     <datalist id="studentDatalist"></datalist>
-                    <p class="text-[11px] text-slate-400 mt-1">非體驗課請務必從清單中選擇既有學生，才能正確連動扣點；體驗課可直接輸入姓名。</p>
+                    <p class="text-[11px] text-slate-400 mt-1">非體驗課請從清單中選擇既有學生；體驗課可直接輸入姓名。</p>
                 </div>
 
                 <div class="flex gap-4">
@@ -123,10 +143,17 @@
                     </div>
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-slate-500 mb-1">教練</label>
-                        <select id="coachName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
-                            <option value="" disabled selected>請選擇教練</option>
+                        <select id="coachName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <option value="">未指定</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-200">
+                    <label class="flex items-center text-xs font-bold text-indigo-800 cursor-pointer">
+                        <input type="checkbox" id="isRecurring" class="mr-2 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                        設為固定課程（之後每週自動帶入這位學生，無論是否繳費）
+                    </label>
                 </div>
 
                 <!-- 體驗課設定 -->
@@ -176,8 +203,8 @@
                 <div class="flex gap-4">
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-slate-500 mb-1">教練</label>
-                        <select id="editCoachName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
-                            <option value="" disabled>請選擇教練</option>
+                        <select id="editCoachName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <option value="">未指定</option>
                         </select>
                     </div>
                     <div class="flex-1">
@@ -188,6 +215,13 @@
                             <option value="completed">已完成</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-200">
+                    <label class="flex items-center text-xs font-bold text-indigo-800 cursor-pointer">
+                        <input type="checkbox" id="editIsRecurring" class="mr-2 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                        設為固定課程（之後每週自動帶入這位學生，無論是否繳費）
+                    </label>
                 </div>
 
                 <!-- 體驗課設定 (編輯) -->
@@ -212,8 +246,8 @@
                 <div class="space-y-2">
                     <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex justify-between items-center">
                         <div>
-                            <div class="text-xs font-bold text-emerald-900">課後點名 (簽到扣點)</div>
-                            <div class="text-[11px] text-emerald-700">完成上課後簽到，自動扣抵 1 堂（依課程時數扣除對應點數）</div>
+                            <div class="text-xs font-bold text-emerald-900">課後點名</div>
+                            <div class="text-[11px] text-emerald-700">完成上課後簽到，標記為已完成（點數請至使用者管理手動調整）</div>
                         </div>
                         <button type="button" id="checkinCourseBtn" class="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs">
                             ✅ 簽到出席

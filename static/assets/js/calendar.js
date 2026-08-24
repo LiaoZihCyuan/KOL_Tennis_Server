@@ -1,6 +1,17 @@
 var calendar;
 var currentUser = null;
 
+// 手機斷點：跟 calendar.css 的 @media (max-width: 768px) 保持一致
+function isMobileViewport() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
+
+const locNames = {
+    'court_out_1': '室外場 1',
+    'court_out_2': '室外場 2',
+    'court_in': '室內場'
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // 檢查登入使用者
     const userStr = localStorage.getItem('kol_user');
@@ -15,8 +26,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     calendar = new FullCalendar.Calendar(calendarEl, {
         locale: 'zh-tw',
-        initialView: 'resourceTimeGridWeek',
-        datesAboveResources: true, 
+        initialView: isMobileViewport() ? 'listDay' : 'resourceTimeGridWeek',
+        datesAboveResources: true,
         
         resources: [
             { id: 'court_out_1', title: '室外場 1' },
@@ -34,6 +45,34 @@ document.addEventListener('DOMContentLoaded', function() {
         selectable: isAdmin, // 僅 Admin 可點選排課
         editable: isAdmin,   // 僅 Admin 支援直接拖曳調課 (Drag & Drop)
         selectMirror: true,
+        noEventsText: '這天沒有排課',
+
+        // listDay 檢視預設的日期標題只顯示星期幾（例如「星期六」），完全不帶
+        // 日期數字——FullCalendar 假設頁面上的標題列會另外顯示完整日期，但
+        // 這個系統的標題列是自訂的（headerToolbar: false），沒有任何地方顯示
+        // 日期，導致手機版切日期時每天看起來都一樣，完全看不出是幾號。這裡把
+        // listDayFormat 固定成「星期幾 + 完整日期」，listWeek 的每列本來就有
+        // side text 帶日期，一起蓋掉讓兩種清單檢視顯示格式一致。
+        listDayFormat: { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' },
+        listDaySideFormat: false,
+
+        // 手機/桌機切換時，自動切換場地格狀檢視 <-> 單日/單週清單檢視，
+        // 場地格狀在手機寬度下會被迫橫向捲動，清單檢視則是直向捲動、
+        // 更適合閱讀「某一天的詳細排課情形」。只在跨越斷點時才切換，
+        // 避免使用者在同一斷點內縮放視窗時被打斷。
+        windowResize: function(arg) {
+            // windowResize 的參數是 { view } 包裝物件，不是 View 本身——直接讀
+            // arg.type 會是 undefined，讓下面的判斷整段失效（呼叫端在斷點切換
+            // 時完全沒反應），要透過 arg.view.type 才拿得到目前的檢視名稱。
+            const mobile = isMobileViewport();
+            const viewType = arg.view.type;
+            const isListView = viewType.startsWith('list');
+            if (mobile && !isListView) {
+                calendar.changeView(viewType === 'resourceTimeGridDay' ? 'listDay' : 'listWeek');
+            } else if (!mobile && isListView) {
+                calendar.changeView(viewType === 'listDay' ? 'resourceTimeGridDay' : 'resourceTimeGridWeek');
+            }
+        },
 
         // 拖曳調課事件處理 (Drag & Drop)
         eventDrop: function(info) {
@@ -61,13 +100,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!res.ok) throw new Error(body.error || '調課失敗');
                 return body;
             })
-            .then(data => {
+            .then(() => {
                 calendar.refetchEvents();
-                // 課程時長改變會連動重算點數（見 credit_cost 校正），這種情況務必讓小編看到，
-                // 一般沒有點數變動的調課則不用跳窗打斷操作。
-                if (data.message && data.message.includes('點數已由')) {
-                    alert(data.message);
-                }
             })
             .catch(err => {
                 alert('調課失敗：' + err.message);
@@ -77,8 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 拖曳調整課程長度 (Resize) — editable:true 預設也會開放拖曳邊緣調整時長，
         // 若不接這個 callback，畫面上看起來調整成功，但其實沒送到後端，重新整理/切換
-        // 週次後會整個復原，小編完全不會發現。這裡直接沿用跟 eventDrop 一樣的邏輯，
-        // 讓時長變更能正確連動重算點數 (credit_cost)。
+        // 週次後會整個復原，小編完全不會發現。這裡直接沿用跟 eventDrop 一樣的邏輯。
         eventResize: function(info) {
             const courseId = info.event.id;
             const newStart = info.event.start;
@@ -102,9 +135,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!res.ok) throw new Error(body.error || '調整時長失敗');
                 return body;
             })
-            .then(data => {
+            .then(() => {
                 calendar.refetchEvents();
-                if (data.message) alert(data.message);
             })
             .catch(err => {
                 alert('調整時長失敗：' + err.message);
@@ -121,9 +153,17 @@ document.addEventListener('DOMContentLoaded', function() {
             let trialFee = arg.event.extendedProps.trial_fee;
             let status = arg.event.extendedProps.status;
             let isOtherStudent = arg.event.extendedProps.is_other_student;
+            let isUnassigned = arg.event.extendedProps.is_unassigned;
+            let location = locNames[arg.event.extendedProps.location] || arg.event.extendedProps.location || '';
+            let isListView = arg.view.type.startsWith('list');
 
             if (isOtherStudent) {
                 let coachColor = arg.event.extendedProps.coach_color || '#3b82f6';
+                if (isListView) {
+                    return {
+                        html: `<span class="px-2 py-0.5 rounded-md text-xs font-bold border" style="background-color: ${coachColor}15; color: ${coachColor}; border-color: ${coachColor};">${coach}${location ? ' · ' + location : ''}</span>`
+                    };
+                }
                 return {
                     html: `
                         <div class="w-full h-full p-1 flex items-center justify-center">
@@ -135,12 +175,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
             }
 
-            let isUnassigned = arg.event.extendedProps.is_unassigned;
-            let leaveBadge = (status === 'cancelled') ? '<div class="text-[10px] bg-black/50 text-white px-1 rounded mt-0.5 inline-block font-normal">已請假</div>' : '';
-            let leaveReqBadge = (arg.event.extendedProps.leave_status === 'requested') ? '<div class="text-[10px] bg-amber-500 text-white px-1 rounded mt-0.5 inline-block font-bold">請假待審</div>' : '';
-            let unassignedBadge = isUnassigned ? '<div class="text-[10px] bg-slate-800 text-white px-1 rounded mt-0.5 inline-block font-bold">待排課</div>' : '';
-            let trialBadge = isTrial ? `<div class="text-[10px] bg-amber-500 text-white font-bold px-1 rounded mt-0.5 inline-block">體驗${trialFee ? '$' + trialFee : ''}</div>` : '';
-            let completedBadge = (status === 'completed') ? '<div class="text-[10px] bg-emerald-600 text-white px-1 rounded mt-0.5 inline-block font-normal">已簽到</div>' : '';
+            let leaveBadgeClass = isListView ? 'bg-slate-500 text-white' : 'bg-black/50 text-white';
+            let leaveBadge = (status === 'cancelled') ? `<span class="text-[10px] ${leaveBadgeClass} px-1.5 py-0.5 rounded font-normal">已請假</span>` : '';
+            let leaveReqBadge = (arg.event.extendedProps.leave_status === 'requested') ? '<span class="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">請假待審</span>' : '';
+            let unassignedBadge = isUnassigned ? '<span class="text-[10px] bg-slate-800 text-white px-1.5 py-0.5 rounded font-bold">待排課</span>' : '';
+            let trialBadge = isTrial ? `<span class="text-[10px] bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded">體驗${trialFee ? '$' + trialFee : ''}</span>` : '';
+            let completedBadge = (status === 'completed') ? '<span class="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-normal">已簽到</span>' : '';
+
+            // 手機的單日/單週清單檢視：時間已由 FullCalendar 內建欄位顯示，這裡把場地/學生/
+            // 教練/程度/狀態排成一行式卡片，方便直向捲動時一眼看清單日詳細排課情形。
+            if (isListView) {
+                let coachColor = arg.event.extendedProps.coach_color || '#64748b';
+                return {
+                    html: `
+                        <div class="w-full py-1 flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer">
+                            <span class="text-xs font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">${location}</span>
+                            <span class="font-bold text-sm text-slate-800">${student}</span>
+                            ${level ? `<span class="text-xs text-slate-400">（${level}）</span>` : ''}
+                            <span class="text-xs font-medium px-1.5 py-0.5 rounded" style="background-color:${coachColor}15; color:${coachColor};">${coach || '待排教練'}</span>
+                            ${unassignedBadge}${leaveBadge}${leaveReqBadge}${completedBadge}${trialBadge}
+                        </div>
+                    `
+                };
+            }
+
             let levelDiv = level ? `<div class="text-[11px] font-normal opacity-90 leading-tight break-words">${level}</div>` : '';
             let coachDiv = `<div class="text-[11px] ${isUnassigned ? 'text-slate-200 italic' : 'font-medium opacity-95'} leading-tight break-words">${coach || '待排教練'}</div>`;
 
@@ -150,11 +208,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="font-bold text-[12px] leading-tight break-words">${student}</div>
                         ${levelDiv}
                         ${coachDiv}
-                        ${unassignedBadge}
-                        ${leaveBadge}
-                        ${leaveReqBadge}
-                        ${completedBadge}
-                        ${trialBadge}
+                        <div class="flex flex-col gap-0.5 mt-0.5">
+                            ${unassignedBadge}
+                            ${leaveBadge}
+                            ${leaveReqBadge}
+                            ${completedBadge}
+                            ${trialBadge}
+                        </div>
                     </div>
                 `
             };
@@ -288,7 +348,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 is_trial: course.is_trial,
                                 trial_count: course.trial_count,
                                 trial_fee: course.trial_fee,
-                                is_other_student: course.is_other_student || false
+                                is_other_student: course.is_other_student || false,
+                                location: course.location
                             }
                         };
                     });
@@ -302,10 +363,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
         datesSet: function(dateInfo) {
             updateWeekSelector(dateInfo.start);
+            // headerToolbar:false 拿掉了 FullCalendar 自己的標題列，list 檢視
+            // 「這天沒有排課」的空狀態又完全不帶日期（見 listDayFormat 的註解），
+            // 所以自訂標頭需要自己補一個永遠看得到的日期/週期文字，不管切到哪個
+            // 檢視、當天有沒有課都看得出現在是幾號。
+            const label = document.getElementById('currentDateLabel');
+            if (label) label.textContent = dateInfo.view.title;
         }
     });
 
     calendar.render();
+
+    // 手機預設是單日清單檢視，把 日/週 切換鈕的樣式同步成「日」被選取，
+    // 不然按鈕看起來停在「週」但實際渲染的是單日清單，會讓人誤會。
+    if (isMobileViewport()) {
+        const dayBtnEl = document.getElementById('viewDayBtn');
+        const weekBtnEl = document.getElementById('viewWeekBtn');
+        if (dayBtnEl && weekBtnEl) {
+            dayBtnEl.className = "px-3 py-1 rounded-md bg-white shadow-sm text-blue-600 font-bold transition-all";
+            weekBtnEl.className = "px-3 py-1 rounded-md text-slate-600 font-medium hover:text-slate-900 transition-all";
+        }
+    }
 
     flatpickr("#mini-calendar", {
         inline: true,
@@ -331,17 +409,28 @@ document.addEventListener('DOMContentLoaded', function() {
 function initTrialToggles() {
     const isTrialCheck = document.getElementById('isTrial');
     const trialFields = document.getElementById('trialFields');
+    const isRecurringCheck = document.getElementById('isRecurring');
     if (isTrialCheck && trialFields) {
         isTrialCheck.addEventListener('change', function() {
             trialFields.classList.toggle('hidden', !this.checked);
+            // 體驗課是單次性質，不應該變成常態固定課程
+            if (isRecurringCheck) {
+                isRecurringCheck.disabled = this.checked;
+                if (this.checked) isRecurringCheck.checked = false;
+            }
         });
     }
 
     const editIsTrialCheck = document.getElementById('editIsTrial');
     const editTrialFields = document.getElementById('editTrialFields');
+    const editIsRecurringCheck = document.getElementById('editIsRecurring');
     if (editIsTrialCheck && editTrialFields) {
         editIsTrialCheck.addEventListener('change', function() {
             editTrialFields.classList.toggle('hidden', !this.checked);
+            if (editIsRecurringCheck) {
+                editIsRecurringCheck.disabled = this.checked;
+                if (this.checked) editIsRecurringCheck.checked = false;
+            }
         });
     }
 }
@@ -381,6 +470,8 @@ function fetchCoaches() {
             const editCoachSelect = document.getElementById('editCoachName');
             if (coachSelect) coachSelect.innerHTML = '<option value="">未指定 (待排教練 / 灰階色)</option>';
             if (editCoachSelect) editCoachSelect.innerHTML = '<option value="">未指定 (待排教練 / 灰階色)</option>';
+            if (coachSelect) coachSelect.value = '';
+            if (editCoachSelect) editCoachSelect.value = '';
             
             data.forEach(coach => {
                 const option = document.createElement('option');
@@ -406,14 +497,14 @@ function initViewToggle() {
 
     if (dayBtn) {
         dayBtn.addEventListener('click', function() {
-            calendar.changeView('resourceTimeGridDay');
+            calendar.changeView(isMobileViewport() ? 'listDay' : 'resourceTimeGridDay');
             dayBtn.className = "px-3 py-1 rounded-md bg-white shadow-sm text-blue-600 font-bold transition-all";
             weekBtn.className = "px-3 py-1 rounded-md text-slate-600 font-medium hover:text-slate-900 transition-all";
         });
     }
     if (weekBtn) {
         weekBtn.addEventListener('click', function() {
-            calendar.changeView('resourceTimeGridWeek');
+            calendar.changeView(isMobileViewport() ? 'listWeek' : 'resourceTimeGridWeek');
             weekBtn.className = "px-3 py-1 rounded-md bg-white shadow-sm text-blue-600 font-bold transition-all";
             dayBtn.className = "px-3 py-1 rounded-md text-slate-600 font-medium hover:text-slate-900 transition-all";
         });
@@ -506,9 +597,20 @@ function openCourseModal(info) {
     let diffMins = diffMs / 60000;
     if (diffMins < 60) diffMins = 60;
     document.getElementById('courseDuration').value = diffMins.toString();
-    
+
+    // 從拖曳選取的場地帶入預設值；手動點「新增課程」按鈕開啟時沒有場地資訊，
+    // 維持選單目前的值（預設第一個選項）即可，使用者自己選。
+    if (info.resource) {
+        document.getElementById('courseLocation').value = info.resource.id;
+    }
+
     document.getElementById('isTrial').checked = false;
     document.getElementById('trialFields').classList.add('hidden');
+    const isRecurringCheck = document.getElementById('isRecurring');
+    if (isRecurringCheck) {
+        isRecurringCheck.checked = false;
+        isRecurringCheck.disabled = false;
+    }
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -543,6 +645,11 @@ function openEditCourseModal(event) {
     document.getElementById('editTrialCount').value = event.extendedProps.trial_count || 1;
     document.getElementById('editTrialFee').value = event.extendedProps.trial_fee || '';
     document.getElementById('editTrialFields').classList.toggle('hidden', !isTrial);
+    const editIsRecurringCheck = document.getElementById('editIsRecurring');
+    if (editIsRecurringCheck) {
+        editIsRecurringCheck.checked = false;
+        editIsRecurringCheck.disabled = isTrial;
+    }
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -561,7 +668,23 @@ function closeEditCourseModal() {
 // ============================================================
 function initModalEvents() {
     document.getElementById('cancelCourseBtn').addEventListener('click', closeCourseModal);
-    
+
+    // 手動「新增課程」按鈕：清單檢視（手機版的 listDay/listWeek）沒有時間格可以
+    // 拖曳選取，select 事件不會觸發，所以需要這個永遠可點的按鈕當作另一個入口，
+    // 用目前行事曆顯示的日期組出一個假的 selection info 交給 openCourseModal。
+    // (權限由 base.html 的 .admin-only 顯示/隱藏機制把關，這裡不用重複檢查
+    // isAdmin——那個變數是 DOMContentLoaded 那層閉包的區域變數，這個函式拿不到。)
+    const addCourseBtn = document.getElementById('addCourseBtn');
+    if (addCourseBtn) {
+        addCourseBtn.addEventListener('click', function() {
+            const anchor = calendar.getDate();
+            const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate(), 10, 0, 0);
+            const end = new Date(start.getTime() + 60 * 60000);
+            openCourseModal({ start, end, resource: null });
+        });
+    }
+
+
     // 新增課程表單提交
     document.getElementById('courseForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -577,21 +700,22 @@ function initModalEvents() {
         const isTrial = document.getElementById('isTrial').checked;
         const trialCount = document.getElementById('trialCount').value;
         const trialFee = document.getElementById('trialFee').value;
-        
-        if (!student || !coach) {
-            alert('請填寫完整學生姓名與教練！');
+        const isRecurring = document.getElementById('isRecurring') ? document.getElementById('isRecurring').checked : false;
+
+        if (!student) {
+            alert('請填寫學生姓名！');
             return;
         }
 
         const studentId = studentNameToId[student] || null;
         if (!isTrial && !studentId) {
-            alert(`找不到學生「${student}」的資料。非體驗課請從輸入框的建議清單中選擇既有學生，才能正確連動扣點；若是新學生，請先到「使用者管理」頁面新增資料。`);
+            alert(`找不到學生「${student}」的資料。非體驗課請從輸入框的建議清單中選擇既有學生；若是新學生，請先到「使用者管理」頁面新增資料。`);
             return;
         }
 
         const startDateTime = new Date(`${dateStr}T${timeStr}:00`);
         const endDateTime = new Date(startDateTime.getTime() + durationMins * 60000);
-        const locationId = currentSelectionInfo.resource ? currentSelectionInfo.resource.id : 'court_out_1';
+        const locationId = document.getElementById('courseLocation').value || 'court_out_1';
 
         const payload = {
             coach_id: coach,
@@ -600,12 +724,12 @@ function initModalEvents() {
             end_time: endDateTime.toISOString(),
             capacity: 4,
             location: locationId,
-            credit_cost: Math.max(1, Math.round(durationMins / 60)),
             title: student,
             description: level,
             is_trial: isTrial,
             trial_count: isTrial && trialCount ? parseInt(trialCount, 10) : null,
-            trial_fee: isTrial && trialFee ? parseInt(trialFee, 10) : null
+            trial_fee: isTrial && trialFee ? parseInt(trialFee, 10) : null,
+            is_recurring: isRecurring
         };
 
         authFetch('/api/courses', {
@@ -618,14 +742,15 @@ function initModalEvents() {
             if (!res.ok) throw new Error(body.error || '新增課程失敗');
             return body;
         })
-        .then(() => {
+        .then(data => {
             calendar.refetchEvents();
             calendar.unselect();
             closeCourseModal();
+            if (isRecurring && data.message) alert(data.message);
         })
         .catch(err => alert('新增課程發生錯誤：' + err.message));
     });
-    
+
     // 編輯課程表單提交
     const editForm = document.getElementById('editCourseForm');
     if (editForm) {
@@ -633,14 +758,16 @@ function initModalEvents() {
             e.preventDefault();
             const courseId = document.getElementById('editCourseId').value;
             const isTrial = document.getElementById('editIsTrial').checked;
-            
+            const isRecurring = document.getElementById('editIsRecurring') ? document.getElementById('editIsRecurring').checked : false;
+
             const payload = {
                 title: document.getElementById('editStudentName').value,
                 coach_id: document.getElementById('editCoachName').value,
                 status: document.getElementById('editCourseStatus').value,
                 is_trial: isTrial,
                 trial_count: isTrial ? parseInt(document.getElementById('editTrialCount').value, 10) : null,
-                trial_fee: isTrial ? parseInt(document.getElementById('editTrialFee').value, 10) : null
+                trial_fee: isTrial ? parseInt(document.getElementById('editTrialFee').value, 10) : null,
+                is_recurring: isRecurring
             };
 
             authFetch(`/api/courses/${courseId}`, {
@@ -648,13 +775,15 @@ function initModalEvents() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
-            .then(res => {
-                if (!res.ok) throw new Error('更新課程失敗');
-                return res.json();
+            .then(async res => {
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(body.error || '更新課程失敗');
+                return body;
             })
-            .then(() => {
+            .then(data => {
                 calendar.refetchEvents();
                 closeEditCourseModal();
+                if (isRecurring && data.message) alert(data.message);
             })
             .catch(err => alert('更新發生錯誤：' + err.message));
         });
@@ -664,11 +793,11 @@ function initModalEvents() {
     const checkinBtn = document.getElementById('checkinCourseBtn');
     if (checkinBtn) {
         checkinBtn.addEventListener('click', function() {
-            if (!confirm('確定執行課後點名簽到？\n課程將標記為已完成，並自動為學員扣抵 1 堂（依課程時數扣除對應點數）。')) return;
+            if (!confirm('確定執行課後點名簽到？\n課程將標記為已完成。')) return;
             const courseId = document.getElementById('editCourseId').value;
             authFetch(`/api/courses/${courseId}/checkin`, { method: 'POST' })
             .then(res => {
-                if (!res.ok) throw new Error('簽到扣點失敗');
+                if (!res.ok) throw new Error('簽到失敗');
                 return res.json();
             })
             .then(d => {

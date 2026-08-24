@@ -8,16 +8,74 @@ from extensions import db
 from models.course import Course, CourseStatus
 from models.course_template import CourseTemplate
 from models.booking import Booking, BookingStatus
-from models.credit_transaction import CreditTransaction, TransactionType
 from models.user import User, UserRole
+
+# 全系統的營業時區。課程時間從前端送來時是 UTC（JS 的 toISOString()），存進
+# timestamptz 後讀回來也不保證是 +08，所以任何要「取出時鐘上的幾點／星期幾」
+# 的地方都必須先轉成這個時區再取，不能直接對原始 datetime 呼叫 .hour /
+# .weekday() / .strftime()。台灣沒有日光節約時間，固定 +08 即可。
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+
+def to_taipei(dt: datetime) -> datetime:
+    """把任意 datetime 轉成台北時間。naive（沒有時區）的一律當成 UTC 解讀，
+    因為前端一律送 JS toISOString() 的 UTC 字串——直接呼叫 astimezone() 會讓
+    Python 拿「容器的系統時區」來補，容器是 UTC 時剛好對、之後改設定就會默默算錯。"""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(TAIPEI_TZ)
 
 
 class CourseService:
     @staticmethod
-    def hours_to_credit_cost(duration_minutes: float) -> int:
-        """1 credit == 1 hour of lesson, rounded to the nearest whole credit
-        (credit_cost is stored as an Integer column, so e.g. a 1.5hr class rounds to 2)."""
-        return max(1, round(duration_minutes / 60))
+    def _upsert_template_from_course(course: Course, student_ids: List[uuid.UUID]) -> Optional[CourseTemplate]:
+        """
+        Turn a single calendar course into a recurring weekly template so it keeps
+        showing up every future week regardless of payment status. Trial lessons are
+        one-offs by nature and are never turned into a standing template. Matches on
+        day-of-week + start time + location so re-marking the same course "固定" twice
+        (or marking a course that a template already auto-generated) doesn't create
+        a duplicate template.
+        """
+        if course.is_trial or not student_ids:
+            return None
+
+        # 一定要先轉成台北時間再取星期幾/時分：course.start_time 是前端送來的
+        # UTC 時間（例如台北 10:00 會是 02:00Z）。直接取的話模板會存成「02:00」，
+        # 而 generate_courses_from_templates 又把模板時間當成台北時間來生課，
+        # 於是同一堂課除了原本的 10:00 之外，還會多生出一堂 02:00 的幽靈課
+        # ——使用者回報的「建立一堂課卻跑出兩堂、時間還很奇妙」就是這個原因。
+        # 晚上 8 點之後 / 早上 8 點之前的課還會連星期幾都算錯一天。
+        local_start = to_taipei(course.start_time)
+        local_end = to_taipei(course.end_time)
+        day_of_week = local_start.weekday()
+        start_time_str = local_start.strftime("%H:%M")
+        end_time_str = local_end.strftime("%H:%M")
+
+        existing = db.session.query(CourseTemplate).filter(
+            CourseTemplate.day_of_week == day_of_week,
+            CourseTemplate.start_time == start_time_str,
+            CourseTemplate.location == course.location,
+            CourseTemplate.deleted_at.is_(None)
+        ).first()
+        if existing:
+            return existing
+
+        tmpl = CourseTemplate(
+            coach_id=course.coach_id,
+            title=course.title,
+            student_ids=[str(sid) for sid in student_ids],
+            day_of_week=day_of_week,
+            start_time=start_time_str,
+            end_time=end_time_str,
+            capacity=course.capacity,
+            location=course.location,
+            description=course.description,
+            is_trial=False,
+            is_active=True
+        )
+        tmpl.save()
+        return tmpl
 
     @staticmethod
     def create_course(
@@ -26,27 +84,19 @@ class CourseService:
         end_time: datetime,
         capacity: int,
         location: str,
-        credit_cost: int,
         description: Optional[str] = None,
         title: Optional[str] = None,
         is_trial: bool = False,
         trial_count: Optional[int] = None,
         trial_fee: Optional[int] = None,
-        student_id: Optional[uuid.UUID] = None
+        student_id: Optional[uuid.UUID] = None,
+        is_recurring: bool = False
     ) -> Course:
-        # Credits must be checked at booking time, not left to be discovered
-        # (or silently skipped) at checkin — a student should never be able
-        # to end up booked into a class they can't actually pay for.
         student = None
         if student_id and not is_trial:
             student = User.get(student_id)
             if not student or student.deleted_at is not None:
                 raise ValueError("找不到指定的學生資料")
-            if student.credits < credit_cost:
-                raise ValueError(
-                    f"{student.display_name} 點數不足（剩餘 {student.credits} 點，本堂課需要 {credit_cost} 點），"
-                    f"請先為學員儲值後再排課"
-                )
 
         course = Course(
             coach_id=coach_id,
@@ -54,7 +104,6 @@ class CourseService:
             end_time=end_time,
             capacity=capacity,
             location=location,
-            credit_cost=credit_cost,
             description=description,
             title=title,
             is_trial=is_trial,
@@ -72,6 +121,9 @@ class CourseService:
                 status=BookingStatus.CONFIRMED
             )
             db.session.add(booking)
+
+        if is_recurring and student:
+            CourseService._upsert_template_from_course(course, [student.id])
 
         Course.commit()
         return course
@@ -105,140 +157,17 @@ class CourseService:
         stmt = stmt.order_by(Course.start_time)
         return list(db.session.scalars(stmt))
 
-    # ------------------------------------------------------------------
-    # Credit helpers
-    #
-    # Credits are only ever taken from a student at checkin time (see
-    # _deduct_for_checkin). Leave / cancel / delete must therefore only
-    # refund a booking's credit_cost when that specific booking actually
-    # has a matching DEDUCTION transaction on record — otherwise "refunding"
-    # a class that was never paid for just hands the student free points.
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _was_credit_deducted(booking_id: uuid.UUID) -> bool:
-        return db.session.query(CreditTransaction).filter(
-            CreditTransaction.related_booking_id == booking_id,
-            CreditTransaction.type == TransactionType.DEDUCTION,
-            CreditTransaction.deleted_at.is_(None)
-        ).first() is not None
-
-    @staticmethod
-    def _deduct_student(student: User, course: Course, admin_id: Optional[uuid.UUID], booking_id: Optional[uuid.UUID]) -> None:
-        # Booking is gated on sufficient credits (create_course /
-        # generate_courses_from_templates), so this should never run short —
-        # but if it somehow does (credits adjusted after booking, etc.), we
-        # still deduct honestly and let the balance go negative rather than
-        # silently skipping the deduction, which used to hide the shortfall
-        # from admins entirely.
-        if student.credits < course.credit_cost:
-            logging.warning(
-                f"學生 {student.display_name} ({student.id}) 簽到扣點後點數將為負數："
-                f"目前 {student.credits} 點，本堂課需要 {course.credit_cost} 點"
-            )
-        student.credits -= course.credit_cost
-        student.lesson_count = max(0, student.lesson_count - 1)
-        tx = CreditTransaction(
-            user_id=student.id,
-            type=TransactionType.DEDUCTION,
-            amount=-course.credit_cost,
-            related_booking_id=booking_id,
-            admin_user_id=admin_id,
-            description=f"上課簽到扣點：{course.title or ''}"
-        )
-        tx.save()
-
-    @staticmethod
-    def _deduct_for_checkin(course: Course, admin_id: Optional[uuid.UUID] = None) -> None:
-        bookings = Booking.get_confirmed_for_course(course.id)
-        for b in bookings:
-            b.status = BookingStatus.ATTENDED
-            if b.student:
-                CourseService._deduct_student(b.student, course, admin_id, b.id)
-
-        if not bookings and course.title:
-            student = db.session.query(User).filter(
-                User.display_name == course.title.strip(),
-                User.role == UserRole.STUDENT,
-                User.deleted_at.is_(None)
-            ).first()
-            if student:
-                CourseService._deduct_student(student, course, admin_id, None)
-
-    @staticmethod
-    def _refund_and_release(
-        course: Course,
-        new_booking_status: BookingStatus,
-        admin_id: Optional[uuid.UUID] = None,
-        description: str = ""
-    ) -> None:
-        bookings = db.session.query(Booking).filter(
-            Booking.course_id == course.id,
-            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.LEAVE_REQUESTED, BookingStatus.ATTENDED]),
-            Booking.deleted_at.is_(None)
-        ).all()
-        for booking in bookings:
-            was_deducted = CourseService._was_credit_deducted(booking.id)
-            booking.status = new_booking_status
-            if was_deducted and course.credit_cost > 0:
-                refund = CreditTransaction(
-                    user_id=booking.user_id,
-                    type=TransactionType.REFUND_LEAVE,
-                    amount=course.credit_cost,
-                    related_booking_id=booking.id,
-                    admin_user_id=admin_id,
-                    description=description or f"退點：課程 {course.title or ''}"
-                )
-                refund.save()
-                booking.student.credits += course.credit_cost
-                booking.student.lesson_count += 1
-
-    @staticmethod
-    def _true_up_credit_cost_change(course: Course, old_credit_cost: int, admin_id: Optional[uuid.UUID] = None) -> None:
-        """
-        A reschedule that changes a course's duration changes its credit_cost too
-        (see reschedule_course). If a booking on this course was already deducted
-        at checkin under the *old* credit_cost, that student's balance needs a
-        correcting transaction — otherwise the points=hours invariant breaks the
-        moment a course is rescheduled after checkin.
-        """
-        diff = course.credit_cost - old_credit_cost
-        if diff == 0:
-            return
-
-        bookings = db.session.query(Booking).filter(
-            Booking.course_id == course.id,
-            Booking.status == BookingStatus.ATTENDED,
-            Booking.deleted_at.is_(None)
-        ).all()
-        for booking in bookings:
-            if not booking.student or not CourseService._was_credit_deducted(booking.id):
-                continue
-            booking.student.credits -= diff
-            tx = CreditTransaction(
-                user_id=booking.user_id,
-                type=TransactionType.DEDUCTION if diff > 0 else TransactionType.REFUND_LEAVE,
-                amount=-diff,
-                related_booking_id=booking.id,
-                admin_user_id=admin_id,
-                description=f"調課點數校正：課程時長變更，{'補扣' if diff > 0 else '退還'} {abs(diff)} 點"
-            )
-            tx.save()
-
     @staticmethod
     def reschedule_course(
         course_id: uuid.UUID,
         admin_id: Optional[uuid.UUID] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        location: Optional[str] = None,
-        credit_cost: Optional[int] = None
+        location: Optional[str] = None
     ) -> Optional[Course]:
         course = Course.get(course_id)
         if not course or course.deleted_at is not None:
             return None
-
-        old_credit_cost = course.credit_cost
-        duration_changed = start_time is not None or end_time is not None
 
         if start_time is not None:
             course.start_time = start_time
@@ -246,17 +175,6 @@ class CourseService:
             course.end_time = end_time
         if location is not None:
             course.location = location
-
-        if credit_cost is not None:
-            course.credit_cost = credit_cost
-        elif duration_changed:
-            # Time changed and the caller didn't explicitly override credit_cost:
-            # keep it honest to the (possibly new) duration rather than silently
-            # carrying over a cost computed for the old time slot.
-            duration_minutes = (course.end_time - course.start_time).total_seconds() / 60
-            course.credit_cost = CourseService.hours_to_credit_cost(duration_minutes)
-
-        CourseService._true_up_credit_cost_change(course, old_credit_cost, admin_id)
 
         Course.commit()
         return course
@@ -268,7 +186,8 @@ class CourseService:
             return None
 
         course.status = CourseStatus.COMPLETED
-        CourseService._deduct_for_checkin(course, admin_id)
+        for b in Booking.get_confirmed_for_course(course.id):
+            b.status = BookingStatus.ATTENDED
 
         Course.commit()
         return course
@@ -277,6 +196,7 @@ class CourseService:
     def update_course(
         course_id: uuid.UUID,
         admin_id: Optional[uuid.UUID] = None,
+        is_recurring: bool = False,
         **kwargs
     ) -> Optional[Course]:
         course = Course.get(course_id)
@@ -293,9 +213,8 @@ class CourseService:
                 new_status = None
 
         # "已完成" / "學員請假" chosen from the edit form's status dropdown must
-        # trigger the same credit deduction / refund side effects as the
-        # dedicated 簽到出席 / 標記請假 buttons — otherwise this dropdown is a
-        # silent way to change a course's outcome without touching points.
+        # trigger the same booking-status side effects as the dedicated
+        # 簽到出席 / 標記請假 buttons.
         became_completed = new_status == CourseStatus.COMPLETED and course.status != CourseStatus.COMPLETED
         became_cancelled = new_status == CourseStatus.CANCELLED and course.status != CourseStatus.CANCELLED
 
@@ -304,32 +223,37 @@ class CourseService:
                 setattr(course, key, value)
 
         if became_completed:
-            CourseService._deduct_for_checkin(course, admin_id)
+            for b in Booking.get_confirmed_for_course(course.id):
+                b.status = BookingStatus.ATTENDED
         elif became_cancelled:
-            CourseService._refund_and_release(
-                course, BookingStatus.LEAVE_APPROVED, admin_id,
-                description=f"請假退點：課程 {course.title or ''}"
-            )
+            CourseService._release_bookings(course, BookingStatus.LEAVE_APPROVED)
+
+        if is_recurring:
+            student_ids = [b.user_id for b in course.bookings if b.deleted_at is None]
+            CourseService._upsert_template_from_course(course, student_ids)
 
         Course.commit()
         return course
 
     @staticmethod
+    def _release_bookings(course: Course, new_booking_status: BookingStatus) -> None:
+        bookings = db.session.query(Booking).filter(
+            Booking.course_id == course.id,
+            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.LEAVE_REQUESTED, BookingStatus.ATTENDED]),
+            Booking.deleted_at.is_(None)
+        ).all()
+        for booking in bookings:
+            booking.status = new_booking_status
+
+    @staticmethod
     def mark_leave(course_id: uuid.UUID, admin_id: Optional[uuid.UUID] = None) -> Optional[Course]:
-        """
-        Mark a course as student leave (status=cancelled), update bookings to LEAVE_APPROVED.
-        Only refunds credits for bookings that had actually been deducted (i.e. already
-        checked in) — a booking that never reached checkin was never charged.
-        """
+        """Mark a course as student leave (status=cancelled), update bookings to LEAVE_APPROVED."""
         course = Course.get(course_id)
         if not course or course.deleted_at is not None:
             return None
 
         course.status = CourseStatus.CANCELLED
-        CourseService._refund_and_release(
-            course, BookingStatus.LEAVE_APPROVED, admin_id,
-            description=f"請假退點：課程 {course.title or ''}"
-        )
+        CourseService._release_bookings(course, BookingStatus.LEAVE_APPROVED)
 
         Course.commit()
         return course
@@ -344,10 +268,7 @@ class CourseService:
             return course
 
         course.status = CourseStatus.CANCELLED
-        CourseService._refund_and_release(
-            course, BookingStatus.CANCELLED, admin_id,
-            description=f"課程取消退點：{course.title or ''}"
-        )
+        CourseService._release_bookings(course, BookingStatus.CANCELLED)
 
         Course.commit()
         return course
@@ -358,13 +279,9 @@ class CourseService:
         Course.soft_delete() only stamps the course itself — it does not cascade
         to its bookings, which otherwise stay "active" forever and keep showing
         up in attendance stats / student profiles for a course that no longer
-        exists (see Issue 09). This does two things before a course is deleted:
-          1. Refund any booking that actually has a DEDUCTION transaction on
-             record (previously deleting a checked-in course silently kept the
-             deducted credits, see Issue 03).
-          2. Soft-delete every booking on the course so it stops appearing in
-             attendance/history queries.
-        Returns the number of bookings refunded.
+        exists (see Issue 09). Soft-deletes every booking on the course so it
+        stops appearing in attendance/history queries. Returns the number of
+        bookings removed.
         """
         course = Course.get(course_id)
         if not course or course.deleted_at is not None:
@@ -375,25 +292,10 @@ class CourseService:
             Booking.deleted_at.is_(None)
         ).all()
 
-        refunded_count = 0
         for booking in bookings:
-            if course.credit_cost > 0 and CourseService._was_credit_deducted(booking.id):
-                refund = CreditTransaction(
-                    user_id=booking.user_id,
-                    type=TransactionType.REFUND_LEAVE,
-                    amount=course.credit_cost,
-                    related_booking_id=booking.id,
-                    admin_user_id=admin_id,
-                    description=f"課程刪除退點：{course.title or ''}"
-                )
-                refund.save()
-                if booking.student:
-                    booking.student.credits += course.credit_cost
-                    booking.student.lesson_count += 1
-                refunded_count += 1
             booking.soft_delete()
 
-        return refunded_count
+        return len(bookings)
 
     @staticmethod
     def generate_courses_from_templates(monday_date: datetime) -> int:
@@ -437,7 +339,6 @@ class CourseService:
                     capacity=tmpl.capacity,
                     location=tmpl.location,
                     description=tmpl.description,
-                    credit_cost=tmpl.credit_cost,
                     is_trial=tmpl.is_trial,
                     trial_count=tmpl.trial_count,
                     trial_fee=tmpl.trial_fee,
@@ -449,27 +350,15 @@ class CourseService:
                     db.session.flush()  # populate course.id
                     for sid in tmpl.student_ids:
                         student = User.get(uuid.UUID(sid))
-                        # A student's credits must cover the lesson before the
-                        # template can auto-book them — same rule as manual
-                        # booking (create_course), just non-fatal here since
-                        # this runs unattended: skip only that student's slot
-                        # instead of failing the whole week's generation.
+                        # Fixed-course templates auto-book every listed student
+                        # regardless of payment status — only a missing/deleted
+                        # student record is skipped, non-fatal so it doesn't
+                        # fail the whole week's generation.
                         if not student or student.deleted_at is not None:
                             skipped.append({
                                 "student_name": sid,
                                 "course_title": course.title or "",
                                 "reason": "找不到學生資料"
-                            })
-                            continue
-                        if student.credits < tmpl.credit_cost:
-                            logging.warning(
-                                f"跳過固定課表自動生課的預約：學生 {student.display_name} ({sid}) 點數不足 "
-                                f"(模板 {tmpl.id}, 課程 {course.title})"
-                            )
-                            skipped.append({
-                                "student_name": student.display_name,
-                                "course_title": course.title or "",
-                                "reason": f"點數不足（剩餘 {student.credits} 點，需要 {tmpl.credit_cost} 點）"
                             })
                             continue
                         db.session.add(Booking(
