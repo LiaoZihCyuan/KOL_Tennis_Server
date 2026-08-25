@@ -59,6 +59,9 @@ class CourseService:
             CourseTemplate.deleted_at.is_(None)
         ).first()
         if existing:
+            # 這一堂本身也要掛上模板，否則「來源那一堂」會被當成單堂課，
+            # 刪除時不會出現「只刪這一堂／刪整個固定課程」的選擇。
+            course.template_id = existing.id
             return existing
 
         tmpl = CourseTemplate(
@@ -75,6 +78,8 @@ class CourseService:
             is_active=True
         )
         tmpl.save()
+        db.session.flush()  # 取得 tmpl.id 才能回頭掛到這堂課上
+        course.template_id = tmpl.id
         return tmpl
 
     @staticmethod
@@ -217,6 +222,10 @@ class CourseService:
         # 簽到出席 / 標記請假 buttons.
         became_completed = new_status == CourseStatus.COMPLETED and course.status != CourseStatus.COMPLETED
         became_cancelled = new_status == CourseStatus.CANCELLED and course.status != CourseStatus.CANCELLED
+        # 把狀態改回「正常」＝取消請假。以前只處理「變成請假」不處理「改回正常」，
+        # 導致課程看起來恢復上課、學生的預約卻永遠停在「已請假」，出席統計因此
+        # 少算這堂課。
+        became_scheduled = new_status == CourseStatus.SCHEDULED and course.status != CourseStatus.SCHEDULED
 
         for key, value in kwargs.items():
             if hasattr(course, key):
@@ -227,6 +236,8 @@ class CourseService:
                 b.status = BookingStatus.ATTENDED
         elif became_cancelled:
             CourseService._release_bookings(course, BookingStatus.LEAVE_APPROVED)
+        elif became_scheduled:
+            CourseService._restore_bookings(course)
 
         if is_recurring:
             student_ids = [b.user_id for b in course.bookings if b.deleted_at is None]
@@ -234,6 +245,57 @@ class CourseService:
 
         Course.commit()
         return course
+
+    @staticmethod
+    def _restore_bookings(course: Course) -> None:
+        """取消請假：把請假中/已准假的預約還原成正常上課。已簽到(ATTENDED)或
+        已取消(CANCELLED)的不動，避免覆蓋掉真正的出席結果。"""
+        bookings = db.session.query(Booking).filter(
+            Booking.course_id == course.id,
+            Booking.status.in_([BookingStatus.LEAVE_REQUESTED, BookingStatus.LEAVE_APPROVED]),
+            Booking.deleted_at.is_(None)
+        ).all()
+        for booking in bookings:
+            booking.status = BookingStatus.CONFIRMED
+
+    @staticmethod
+    def delete_course(course_id: uuid.UUID, scope: str = "occurrence",
+                      admin_id: Optional[uuid.UUID] = None) -> Optional[Dict[str, Any]]:
+        """刪除課程。
+        scope="occurrence"：只刪這一堂。因為 Course 上留著 template_id，
+          generate_courses_from_templates 會知道這一天已經生過並被刪掉，不會再生回來。
+        scope="series"：連同固定課表模板一起停用，往後每週都不再帶入；同時把
+          「今天以後」還沒上的同系列課程一併刪掉（過去的紀錄保留，才不會把已經
+          上過的課從歷史/統計裡抹掉）。
+        """
+        course = Course.get(course_id)
+        if not course or course.deleted_at is not None:
+            return None
+
+        CourseService.cleanup_bookings_before_delete(course_id, admin_id=admin_id)
+        course.soft_delete()
+
+        removed_future = 0
+        template_removed = False
+        if scope == "series" and course.template_id:
+            tmpl = CourseTemplate.get(course.template_id)
+            if tmpl and tmpl.deleted_at is None:
+                tmpl.soft_delete()
+                template_removed = True
+
+            future = db.session.query(Course).filter(
+                Course.template_id == course.template_id,
+                Course.id != course.id,
+                Course.start_time >= course.start_time,
+                Course.deleted_at.is_(None)
+            ).all()
+            for c in future:
+                CourseService.cleanup_bookings_before_delete(c.id, admin_id=admin_id)
+                c.soft_delete()
+                removed_future += 1
+
+        Course.commit()
+        return {"template_removed": template_removed, "removed_future": removed_future}
 
     @staticmethod
     def _release_bookings(course: Course, new_booking_status: BookingStatus) -> None:
@@ -323,15 +385,24 @@ class CourseService:
             start_dt = datetime(target_date.year, target_date.month, target_date.day, start_parts[0], start_parts[1], tzinfo=tz)
             end_dt = datetime(target_date.year, target_date.month, target_date.day, end_parts[0], end_parts[1], tzinfo=tz)
 
-            # Check if course already exists at this location & time
-            existing = db.session.query(Course).filter(
+            # 這個時段已經有課（不管是手動排的還是先前生成的）就不要再生一堂。
+            occupied = db.session.query(Course).filter(
                 Course.location == tmpl.location,
                 Course.start_time == start_dt,
                 Course.deleted_at.is_(None)
             ).first()
 
-            if not existing:
+            # 這個模板在這一天已經生過課、但被小編刪掉了 —— 刻意「不」過濾
+            # deleted_at，這樣被刪掉的那一堂才不會下次載入行事曆時又冒出來
+            # （使用者回報的「部分課程刪不掉」就是這個原因）。
+            already_generated = db.session.query(Course).filter(
+                Course.template_id == tmpl.id,
+                Course.start_time == start_dt
+            ).first()
+
+            if not occupied and not already_generated:
                 course = Course(
+                    template_id=tmpl.id,
                     coach_id=tmpl.coach_id,
                     title=tmpl.title,
                     start_time=start_dt,

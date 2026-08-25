@@ -366,6 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 trial_count: course.trial_count,
                                 trial_fee: course.trial_fee,
                                 is_other_student: course.is_other_student || false,
+                                is_recurring: course.is_recurring || false,
                                 location: course.location
                             }
                         };
@@ -662,14 +663,50 @@ function openEditCourseModal(event) {
     document.getElementById('editTrialCount').value = event.extendedProps.trial_count || 1;
     document.getElementById('editTrialFee').value = event.extendedProps.trial_fee || '';
     document.getElementById('editTrialFields').classList.toggle('hidden', !isTrial);
+    currentEditIsRecurring = event.extendedProps.is_recurring || false;
     const editIsRecurringCheck = document.getElementById('editIsRecurring');
     if (editIsRecurringCheck) {
-        editIsRecurringCheck.checked = false;
+        // 已經是固定課程的話勾選框直接顯示成已勾選，不要讓小編以為還沒設定
+        editIsRecurringCheck.checked = currentEditIsRecurring;
         editIsRecurringCheck.disabled = isTrial;
     }
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+}
+
+// 目前開啟的編輯視窗對應的課程是不是固定課程帶入的（決定刪除時要不要問範圍）
+var currentEditIsRecurring = false;
+
+function openDeleteScopeModal() {
+    const m = document.getElementById('deleteScopeModal');
+    if (!m) return;
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+}
+
+function closeDeleteScopeModal() {
+    const m = document.getElementById('deleteScopeModal');
+    if (!m) return;
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+}
+
+function performDelete(scope) {
+    const courseId = document.getElementById('editCourseId').value;
+    authFetch(`/api/courses/${courseId}?scope=${scope}`, { method: 'DELETE' })
+        .then(async res => {
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || '刪除課程失敗');
+            return body;
+        })
+        .then(data => {
+            closeDeleteScopeModal();
+            closeEditCourseModal();
+            calendar.refetchEvents();
+            if (scope === 'series' && data.message) alert(data.message);
+        })
+        .catch(err => alert('刪除發生錯誤：' + err.message));
 }
 
 function closeEditCourseModal() {
@@ -848,15 +885,26 @@ function initModalEvents() {
     const deleteBtn = document.getElementById('deleteCourseBtn');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', function() {
-            if (!confirm('確定要永久刪除此課程嗎？此動作無法復原。')) return;
-            const courseId = document.getElementById('editCourseId').value;
-            authFetch(`/api/courses/${courseId}`, { method: 'DELETE' })
-            .then(res => {
-                if (!res.ok) throw new Error('刪除課程失敗');
-                calendar.refetchEvents();
-                closeEditCourseModal();
-            })
-            .catch(err => alert('刪除發生錯誤：' + err.message));
+            // 固定課程要先問清楚是「只停這一次」還是「整個固定課程都不要了」，
+            // 不然小編只想停一週卻把整學期的排課砍掉（或以為刪掉了、下次載入
+            // 又被自動生回來）。一般單堂課維持原本的簡單確認。
+            if (currentEditIsRecurring) {
+                openDeleteScopeModal();
+            } else if (confirm('確定要永久刪除此課程嗎？此動作無法復原。')) {
+                performDelete('occurrence');
+            }
+        });
+    }
+
+    const delOnce = document.getElementById('deleteOnceBtn');
+    if (delOnce) delOnce.addEventListener('click', () => performDelete('occurrence'));
+
+    const delSeries = document.getElementById('deleteSeriesBtn');
+    if (delSeries) {
+        delSeries.addEventListener('click', function() {
+            if (confirm('確定要刪除整個固定課程嗎？\n往後每週都不會再自動帶入這位學生，尚未上課的同系列課程也會一併移除。')) {
+                performDelete('series');
+            }
         });
     }
 }

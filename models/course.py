@@ -27,7 +27,14 @@ class Course(BaseModel):
     location: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     status: Mapped[CourseStatus] = mapped_column(SQLEnum(CourseStatus), default=CourseStatus.SCHEDULED, nullable=False)
-    
+
+    # 這堂課是由哪一筆固定課表模板自動產生的（手動建立的課為 None）。
+    # 有這個關聯才分得出「刪掉這一堂」和「停掉整個固定課程」，也才能記住某一週
+    # 的某一堂被小編刪掉過、不要在下次載入行事曆時又自動生回來。
+    template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("course_templates.id"), nullable=True
+    )
+
     # Trial lesson fields
     is_trial: Mapped[bool] = mapped_column(db.Boolean, default=False, nullable=False)
     trial_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

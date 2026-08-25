@@ -114,6 +114,8 @@ def get_courses():
                 "trial_count": c.trial_count,
                 "trial_fee": c.trial_fee,
                 "is_other_student": False,
+                # 前端要靠這個判斷刪除時是否需要問「只刪這一堂／刪整個固定課程」
+                "is_recurring": c.template_id is not None,
                 "students": [{"id": str(b.student.id), "name": b.student.display_name, "status": b.status.value} for b in c.bookings if b.student]
             })
 
@@ -434,16 +436,22 @@ def mark_course_leave(course_id):
 def delete_course_public(course_id):
     try:
         c_id = uuid.UUID(course_id)
-        course = Course.get(c_id)
-        if not course:
+        # scope=occurrence(預設) 只刪這一堂；scope=series 連固定課表一起停掉
+        scope = (request.args.get("scope") or "occurrence").lower()
+        if scope not in ("occurrence", "series"):
+            return jsonify({"error": "scope 只接受 occurrence 或 series"}), 400
+
+        result = CourseService.delete_course(c_id, scope=scope, admin_id=g.current_user.id)
+        if result is None:
             return jsonify({"error": "Course not found"}), 404
 
-        CourseService.cleanup_bookings_before_delete(c_id, admin_id=g.current_user.id)
-
-        course.soft_delete()
-        Course.commit()
-
-        return jsonify({"message": "Course deleted successfully"}), 200
+        if result["template_removed"]:
+            message = "已刪除整個固定課程，往後每週都不會再自動帶入"
+            if result["removed_future"]:
+                message += f"（同時移除了 {result['removed_future']} 堂尚未上課的同系列課程）"
+        else:
+            message = "已刪除這一堂課"
+        return jsonify({"message": message}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
