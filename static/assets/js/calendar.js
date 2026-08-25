@@ -47,17 +47,22 @@ document.addEventListener('DOMContentLoaded', function() {
             { id: 'court_in', title: '室內場' }
         ],
 
-        slotMinTime: '10:00:00',
+        slotMinTime: '07:00:00',
         slotMaxTime: '22:00:00',
-        
+        // 手機上把格線改成每小時一條（桌機維持半小時）。7:00~22:00 用半小時格
+        // 是 30 列，手機高度根本塞不下，只能捲動；改成每小時一條就剩 15 列，
+        // 整天剛好一個畫面看完。課程方塊是依實際時間定位的，不是對齊格線，
+        // 所以 10:30 這種半點開始的課位置照樣正確，只是背景格線變成整點。
+        slotDuration: isMobileViewport() ? '01:00:00' : '00:30:00',
+
         allDaySlot: false,
         headerToolbar: false,
         stickyHeaderDates: true,
-        // 桌機讓時間列撐滿容器高度比較好看；手機關掉，因為 expandRows 算出來的
-        // 列高會比實際可用高度多出約 20px，導致時間格內部出現捲軸、看不到最後
-        // 一個時段。關掉之後改由 calendar.css 的 .fc-timegrid-slot 固定格高
-        // 控制，整天 10:00~22:00 一定塞得進一個畫面，方便直接截圖給教練。
-        expandRows: !isMobileViewport(),
+        // 讓時間列撐滿容器高度：手機改成每小時一格（15 列）後，剛好能填滿而不
+        // 溢出，課程方塊也才有足夠高度顯示「學生 + 教練」兩行。
+        // （之前手機關掉這個選項，是因為半小時格有 24 列時 expandRows 算出來的
+        //   列高會超出容器約 20px，反而擠出內部捲軸。）
+        expandRows: true,
         selectable: isAdmin, // 僅 Admin 可點選排課
         editable: isAdmin,   // 僅 Admin 支援直接拖曳調課 (Drag & Drop)
         selectMirror: true,
@@ -82,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const viewType = arg.view.type;
             const isWeek = viewType === 'listWeek' || viewType === 'resourceTimeGridWeek';
             const want = isWeek ? weekViewName() : dayViewName();
-            calendar.setOption('expandRows', !isMobileViewport());
+            calendar.setOption('slotDuration', isMobileViewport() ? '01:00:00' : '00:30:00');
             if (viewType !== want) calendar.changeView(want);
         },
 
