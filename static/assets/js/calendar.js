@@ -47,6 +47,12 @@ document.addEventListener('DOMContentLoaded', function() {
             { id: 'court_in', title: '室內場' }
         ],
 
+        // 一週從星期一開始。系統其他地方全是以星期一為一週之始（固定課表的
+        // day_of_week 0=星期一、套用課表也是傳週一的日期），但 FullCalendar
+        // 預設從星期日起算，導致週檢視顯示 8/23–8/29、上方週次選單卻顯示
+        // 8/24~8/30，兩者差一週，跳週時看起來像沒有跟著動。
+        firstDay: 1,
+
         slotMinTime: '07:00:00',
         slotMaxTime: '22:00:00',
         // 手機上把格線改成每小時一條（桌機維持半小時）。7:00~22:00 用半小時格
@@ -405,7 +411,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     flatpickr("#mini-calendar", {
         inline: true,
-        locale: "zh_tw",
+        // 跟主課表一樣以星期一為一週之始，避免側邊小日曆和右側週檢視的
+        // 星期欄位對不起來，看日期時更容易誤判
+        locale: { ...flatpickr.l10ns.zh_tw, firstDayOfWeek: 1 },
         onChange: function(selectedDates) {
             if (selectedDates.length > 0) {
                 calendar.gotoDate(selectedDates[0]);
@@ -556,7 +564,7 @@ function populateWeekOptions(selector) {
         weekEnd.setDate(weekEnd.getDate() + 6);
 
         const option = document.createElement('option');
-        option.value = weekStart.toISOString().split('T')[0];
+        option.value = toLocalDateStr(weekStart);
         option.textContent = `${formatDate(weekStart)} ~ ${formatDate(weekEnd)}`;
 
         if (i === 0) {
@@ -572,14 +580,36 @@ function updateWeekSelector(viewStart) {
     if (!selector) return;
 
     const viewMonday = getMonday(viewStart);
-    const dateStr = viewMonday.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(viewMonday);
 
     for (const opt of selector.options) {
         if (opt.value === dateStr) {
             opt.selected = true;
-            break;
+            return;
         }
     }
+
+    // 選單只預先建立今天前後各 6 週；跳超出這個範圍時原本會找不到對應選項，
+    // 選單就停在上一次選到的週次（看起來還停在本週）。這裡補一個該週的選項
+    // 並選起來，讓顯示的週次永遠跟畫面上的日期一致。
+    const weekEnd = new Date(viewMonday);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const opt = document.createElement('option');
+    opt.value = dateStr;
+    opt.textContent = `${formatDate(viewMonday)} ~ ${formatDate(weekEnd)}`;
+    opt.selected = true;
+    // 依日期插到正確位置，選單才不會亂序
+    const before = Array.from(selector.options).find(o => o.value > dateStr);
+    selector.insertBefore(opt, before || null);
+}
+
+// 用「當地時間」組出 YYYY-MM-DD。不能用 toISOString()：它會先轉成 UTC，台北
+// (UTC+8) 的當地午夜換算後會退回前一天，週次下拉選單的 value 就永遠對不上，
+// 導致跳日/跳週時選單一直停在「(本週)」，看起來每天都是今天。
+function toLocalDateStr(d) {
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${m}-${day}`;
 }
 
 function getMonday(d) {
