@@ -24,6 +24,248 @@ const locNames = {
     'court_in': '室內場'
 };
 
+// 用「YYYY-MM-DD」字串（date input 的 value）算出星期幾，不透過 new Date(dateStr)
+// 那種會被當成 UTC 解析的寫法——雖然台灣是 UTC+8 這裡不會真的跨日，但沿用專案裡
+// 其他地方（toLocalDateStr/getMonday）已經在用的「拆解年月日組本地時間」寫法比較保險。
+const WEEKDAY_CHARS = ['日', '一', '二', '三', '四', '五', '六'];
+
+function weekdayChar(date) {
+    return WEEKDAY_CHARS[date.getDay()];
+}
+
+function weekdayLabel(dateStr) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!y || !m || !d) return '';
+    return `（週${weekdayChar(new Date(y, m - 1, d))}）`;
+}
+
+// 上方導覽列的日期文字。FullCalendar 內建的 view.title 不帶星期，這裡自己組：
+// 單日檢視 →「2026年9月5日（週六）」；週檢視 →「2026年8月31日（一）– 9月6日（日）」
+function currentDateLabelText(dateInfo) {
+    const t = dateInfo.view.type;
+    const isDay = t === 'resourceTimeGridDay' || t === 'listDay';
+    const start = dateInfo.start;
+
+    if (isDay) {
+        return `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日（週${weekdayChar(start)}）`;
+    }
+
+    // dateInfo.end 是「不含」的結束時間（下週一 00:00），往回推一天才是這週最後一天
+    const last = new Date(dateInfo.end);
+    last.setDate(last.getDate() - 1);
+
+    const head = `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日（${weekdayChar(start)}）`;
+    // 同一年就不重複寫年份，跨年時才補上，避免標籤過長
+    const tail = start.getFullYear() === last.getFullYear()
+        ? `${last.getMonth() + 1}月${last.getDate()}日（${weekdayChar(last)}）`
+        : `${last.getFullYear()}年${last.getMonth() + 1}月${last.getDate()}日（${weekdayChar(last)}）`;
+    return `${head} – ${tail}`;
+}
+
+// 教練姓名在課表上只顯示姓氏（例如「王教練」→「王」），不重複寫出「教練」二字
+function coachSurname(name) {
+    if (!name) return name;
+    const idx = name.indexOf('教練');
+    return idx > 0 ? name.slice(0, idx) : name;
+}
+
+// 請假資訊面板只給小編/教練看：學生只會看到自己的課，對其他人的請假狀態沒有意義，
+// 而且該角色的 /api/courses 回傳其他學生的課程都是遮蔽過的假資料，湊不出正確名單。
+function canViewLeaveInfo() {
+    return !!currentUser && (currentUser.role === 'admin' || currentUser.role === 'coach');
+}
+
+// 依目前檢視（日/週）決定面板標題文字
+function leaveInfoScopeLabel() {
+    if (!calendar) return '請假紀錄';
+    const t = calendar.view.type;
+    const isDay = t === 'resourceTimeGridDay' || t === 'listDay';
+    return (isDay ? '本日' : '本週') + '請假紀錄';
+}
+
+// 純文字插進 innerHTML 前先跳脫，公告內容是小編自行輸入的文字，避免帶到 HTML 特殊字元
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+}
+
+// 「通知」面板的統一未讀數 = 公告則數 + 自動請假名單筆數，兩邊資料各自非同步
+// 更新，所以各自記著自己的數量，變動時都呼叫這個函式重算徽章
+let leaveEntryCount = 0;
+let notificationCount = 0;
+function updateNotificationBadge() {
+    const badge = document.getElementById('leaveInfoCount');
+    if (!badge) return;
+    const total = leaveEntryCount + notificationCount;
+    if (total > 0) {
+        badge.textContent = total;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+// 把目前檢視範圍抓到的課程資料（events 回呼拿到的原始 API 資料）整理成請假名單，
+// 用 booking 層級的 status 而非課程層級，這樣同一堂課裡只有部分學生請假時也能準確列出
+function renderLeaveInfoPanel(courses) {
+    const wrap = document.getElementById('leaveInfoWrap');
+    const scopeLabel = document.getElementById('leaveInfoScopeLabel');
+    const list = document.getElementById('leaveInfoList');
+    if (!wrap || !list) return;
+
+    if (!canViewLeaveInfo()) {
+        wrap.classList.add('hidden');
+        return;
+    }
+    wrap.classList.remove('hidden');
+    if (scopeLabel) scopeLabel.textContent = leaveInfoScopeLabel();
+
+    const entries = [];
+    (courses || []).forEach(c => {
+        (c.students || []).forEach(s => {
+            if (s.status === 'leave_requested' || s.status === 'leave_approved') {
+                entries.push({
+                    studentName: s.name,
+                    approved: s.status === 'leave_approved',
+                    startTime: c.start_time,
+                    location: locNames[c.location] || c.location || '',
+                    coach: coachSurname(c.coach_name)
+                });
+            }
+        });
+    });
+    entries.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+    leaveEntryCount = entries.length;
+    updateNotificationBadge();
+
+    if (entries.length === 0) {
+        list.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">目前檢視範圍內沒有請假紀錄</div>';
+        return;
+    }
+
+    list.innerHTML = entries.map(e => {
+        const dt = new Date(e.startTime);
+        const dtStr = dt.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+        const statusClass = e.approved ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700';
+        const statusText = e.approved ? '已請假' : '待審核';
+        return `
+            <div class="p-2 rounded-lg border border-slate-100 bg-slate-50/60">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-slate-800 truncate">${escapeHtml(e.studentName)}</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${statusClass}">${statusText}</span>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-0.5">${dtStr} · ${e.location} · ${escapeHtml(e.coach)}教練</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// 小編自行新增的公告（教練請假、貴賓來訪等），跟自動產生的請假名單不同來源，
+// 不綁日期/週次，小編何時想刪就刪，教練只能看不能新增/刪除
+function renderNotifications(notifications) {
+    const container = document.getElementById('notificationList');
+    const addRow = document.getElementById('addNotificationRow');
+    if (!container) return;
+
+    const canManage = !!currentUser && currentUser.role === 'admin';
+    if (addRow) {
+        addRow.classList.toggle('hidden', !canManage);
+        addRow.classList.toggle('flex', canManage);
+    }
+
+    if (!notifications || notifications.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-400 text-center py-2">目前沒有公告</div>';
+        return;
+    }
+
+    container.innerHTML = notifications.map(n => `
+        <div class="flex items-start justify-between gap-2 p-2 rounded-lg border border-blue-100 bg-blue-50/60">
+            <span class="text-xs text-slate-700 flex-1 break-words">${escapeHtml(n.message)}</span>
+            ${canManage ? `<button type="button" class="delete-notification-btn text-slate-400 hover:text-rose-600 shrink-0 text-xs leading-4" data-id="${n.id}">✕</button>` : ''}
+        </div>
+    `).join('');
+}
+
+function fetchNotifications() {
+    if (!canViewLeaveInfo()) return;
+    authFetch('/api/notifications')
+        .then(res => res.json())
+        .then(data => {
+            notificationCount = Array.isArray(data) ? data.length : 0;
+            updateNotificationBadge();
+            renderNotifications(data);
+        })
+        .catch(err => console.error('Error fetching notifications:', err));
+}
+
+function initLeaveInfoPanel() {
+    const btn = document.getElementById('leaveInfoBtn');
+    const panel = document.getElementById('leaveInfoPanel');
+    const wrap = document.getElementById('leaveInfoWrap');
+    if (!btn || !panel || !wrap) return;
+
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        panel.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!wrap.contains(e.target)) panel.classList.add('hidden');
+    });
+}
+
+function initNotifications() {
+    const addBtn = document.getElementById('addNotificationBtn');
+    const input = document.getElementById('notificationInput');
+    const list = document.getElementById('notificationList');
+
+    if (addBtn && input) {
+        const submitNotification = function() {
+            const message = input.value.trim();
+            if (!message) return;
+            addBtn.disabled = true;
+            authFetch('/api/notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            })
+            .then(async res => {
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(body.error || '新增通知失敗');
+                input.value = '';
+                fetchNotifications();
+            })
+            .catch(err => alert('新增通知發生錯誤：' + err.message))
+            .finally(() => { addBtn.disabled = false; });
+        };
+        addBtn.addEventListener('click', submitNotification);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitNotification();
+            }
+        });
+    }
+
+    if (list) {
+        list.addEventListener('click', function(e) {
+            const btn = e.target.closest('.delete-notification-btn');
+            if (!btn) return;
+            if (!confirm('確定刪除這則通知？')) return;
+            authFetch(`/api/notifications/${btn.getAttribute('data-id')}`, { method: 'DELETE' })
+                .then(async res => {
+                    const body = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(body.error || '刪除通知失敗');
+                    fetchNotifications();
+                })
+                .catch(err => alert('刪除通知發生錯誤：' + err.message));
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // 檢查登入使用者
     const userStr = localStorage.getItem('kol_user');
@@ -69,6 +311,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // （之前手機關掉這個選項，是因為半小時格有 24 列時 expandRows 算出來的
         //   列高會超出容器約 20px，反而擠出內部捲軸。）
         expandRows: true,
+
+        // 每個場地欄至少 90px，欄位塞不下時由 FullCalendar 自己的 scrollgrid 產生
+        // 橫向捲軸——這樣左側時間欄會被固定住，往右捲看後面幾天時仍然對得到時間。
+        // （以前是用 CSS 的 #calendar{min-width:1800px} 撐寬、讓外層容器橫向捲動，
+        //   但那會連時間欄一起捲出畫面，右邊的課就看不出是幾點的課。）
+        // 單週 7 天 × 3 場地 = 21 欄，90px × 21 ≈ 1890px，跟原本 1800px 差不多寬；
+        // 螢幕夠寬時欄位會自動撐開填滿，不會硬留捲軸。
+        dayMinWidth: 90,
+
         selectable: isAdmin, // 僅 Admin 可點選排課
         editable: isAdmin,   // 僅 Admin 支援直接拖曳調課 (Drag & Drop)
         selectMirror: true,
@@ -184,13 +435,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 let coachColor = arg.event.extendedProps.coach_color || '#3b82f6';
                 if (isListView) {
                     return {
-                        html: `<span class="px-2 py-0.5 rounded-md text-xs font-bold border" style="background-color: ${coachColor}15; color: ${coachColor}; border-color: ${coachColor};">${coach}${location ? ' · ' + location : ''}</span>`
+                        html: `<span class="coach-name-text px-2 py-0.5 rounded-md text-xs font-bold border" style="background-color: ${coachColor}15; color: ${coachColor}; border-color: ${coachColor};">${coach}${location ? ' · ' + location : ''}</span>`
                     };
                 }
                 return {
                     html: `
                         <div class="w-full h-full p-1 flex items-center justify-center">
-                            <span class="px-2 py-0.5 rounded-md text-[11px] font-bold border" style="background-color: ${coachColor}15; color: ${coachColor}; border-color: ${coachColor};">
+                            <span class="coach-name-text px-2 py-0.5 rounded-md text-[11px] font-bold border" style="background-color: ${coachColor}15; color: ${coachColor}; border-color: ${coachColor};">
                                 ${coach}
                             </span>
                         </div>
@@ -215,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="text-xs font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">${location}</span>
                             <span class="font-bold text-sm text-slate-800">${student}</span>
                             ${level ? `<span class="text-xs text-slate-400">（${level}）</span>` : ''}
-                            <span class="text-xs font-medium px-1.5 py-0.5 rounded" style="background-color:${coachColor}15; color:${coachColor};">${coach || '待排教練'}</span>
+                            <span class="coach-name-text text-xs font-medium px-1.5 py-0.5 rounded" style="background-color:${coachColor}15; color:${coachColor};">${coach || '待排'}</span>
                             ${unassignedBadge}${leaveBadge}${leaveReqBadge}${completedBadge}${trialBadge}
                         </div>
                     `
@@ -223,7 +474,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             let levelDiv = level ? `<div class="text-[11px] font-normal opacity-90 leading-tight break-words">${level}</div>` : '';
-            let coachDiv = `<div class="text-[11px] ${isUnassigned ? 'text-slate-200 italic' : 'font-medium opacity-95'} leading-tight break-words">${coach || '待排教練'}</div>`;
+            let coachDiv = `<div class="coach-name-text text-[11px] ${isUnassigned ? 'text-slate-200 italic' : 'font-medium opacity-95'} leading-tight break-words">${coach || '待排'}</div>`;
 
             return {
                 html: `
@@ -328,7 +579,21 @@ document.addEventListener('DOMContentLoaded', function() {
             authFetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    let mappedEvents = data.map(course => {
+                    // 教練勾選篩選（小編專用，可複選）。在前端過濾而不是打回後端，
+                    // 是因為後端的 coach_id 參數一次只吃一位教練，複選需要自己過濾。
+                    let scoped = applyCoachFilter(data);
+
+                    renderLeaveInfoPanel(scoped);
+
+                    // 已核准請假 (status=cancelled) 的課不再佔用課表格子——請假名單已經
+                    // 有「請假資訊」面板可以查，格子留著灰色方塊只會讓小編以為時段還被佔用，
+                    // 排不了別的課。只對看得到請假面板的小編/教練套用；學生沒有面板可查，
+                    // 還是讓他們在自己的課表上看得到「這堂已經請假」的紀錄。
+                    let visibleCourses = canViewLeaveInfo()
+                        ? scoped.filter(course => course.status !== 'cancelled')
+                        : scoped;
+
+                    let mappedEvents = visibleCourses.map(course => {
                         let title = course.title || (course.students && course.students.length > 0 
                             ? course.students.map(s => s.name).join(', ') 
                             : '未命名課程');
@@ -337,7 +602,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         let bgColor = '#64748b'; // 預設灰階 (尚未排課/待排教練)
                         let borderColor = '#475569';
-                        let coachDisplayName = course.coach_name;
+                        let coachDisplayName = coachSurname(course.coach_name);
 
                         if (course.is_other_student) {
                             bgColor = '#ffffff';
@@ -349,7 +614,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             bgColor = course.coach_color;
                             borderColor = course.coach_color;
                         } else {
-                            coachDisplayName = '待排教練';
+                            coachDisplayName = '待排';
                         }
 
                         return {
@@ -392,7 +657,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 所以自訂標頭需要自己補一個永遠看得到的日期/週期文字，不管切到哪個
             // 檢視、當天有沒有課都看得出現在是幾號。
             const label = document.getElementById('currentDateLabel');
-            if (label) label.textContent = dateInfo.view.title;
+            if (label) label.textContent = currentDateLabelText(dateInfo);
         }
     });
 
@@ -427,6 +692,10 @@ document.addEventListener('DOMContentLoaded', function() {
     initWeekSelector();
     initViewToggle();
     initTrialToggles();
+    initLeaveInfoPanel();
+    initNotifications();
+    fetchNotifications();
+    initCoachFilter();
 });
 
 // ============================================================
@@ -504,14 +773,126 @@ function fetchCoaches() {
                 option.value = coach.id;
                 option.textContent = coach.display_name;
                 if (coachSelect) coachSelect.appendChild(option);
-                
+
                 if (editCoachSelect) {
                     const editOption = option.cloneNode(true);
                     editCoachSelect.appendChild(editOption);
                 }
             });
+
+            renderCoachFilterOptions(data);
         })
         .catch(err => console.error('Error fetching coaches:', err));
+}
+
+// ============================================================
+// 教練勾選篩選 (小編專用，可複選)
+// ============================================================
+// null = 尚未載入教練清單／不篩選；Set = 目前勾選的 coach_id（'' 代表待排教練的課）
+var selectedCoachIds = null;
+
+function renderCoachFilterOptions(coaches) {
+    const container = document.getElementById('coachFilterOptions');
+    if (!container) return;
+
+    // 預設全勾（＝顯示全部），重新載入教練清單時保留使用者已經取消勾選的狀態
+    const prev = selectedCoachIds;
+    selectedCoachIds = new Set();
+    coaches.forEach(c => {
+        if (!prev || prev.has(c.id)) selectedCoachIds.add(c.id);
+    });
+    if (!prev || prev.has('')) selectedCoachIds.add('');
+
+    container.innerHTML = coaches.map(c => `
+        <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" class="coach-filter-item rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5" value="${c.id}" ${selectedCoachIds.has(c.id) ? 'checked' : ''}>
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color:${c.color || '#64748b'};"></span>
+            <span class="text-xs text-slate-700">${escapeHtml(c.display_name)}</span>
+        </label>
+    `).join('') + `
+        <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" class="coach-filter-item rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5" value="" ${selectedCoachIds.has('') ? 'checked' : ''}>
+            <span class="w-2.5 h-2.5 rounded-full shrink-0 bg-slate-500"></span>
+            <span class="text-xs text-slate-700">待排教練</span>
+        </label>
+    `;
+
+    updateCoachFilterLabel();
+}
+
+// 依目前勾選狀況過濾課程資料；全勾或還沒載入清單時原樣回傳
+function applyCoachFilter(courses) {
+    if (!selectedCoachIds) return courses;
+    const boxes = document.querySelectorAll('.coach-filter-item');
+    if (boxes.length === 0) return courses;
+    if (selectedCoachIds.size === boxes.length) return courses;
+    return courses.filter(c => selectedCoachIds.has(c.coach_id || ''));
+}
+
+function updateCoachFilterLabel() {
+    const label = document.getElementById('coachFilterLabel');
+    const allBox = document.getElementById('coachFilterAll');
+    const boxes = document.querySelectorAll('.coach-filter-item');
+    if (!label) return;
+
+    const total = boxes.length;
+    const picked = selectedCoachIds ? selectedCoachIds.size : total;
+
+    if (allBox) allBox.checked = total > 0 && picked === total;
+
+    if (total === 0 || picked === total) {
+        label.textContent = '全部教練';
+    } else if (picked === 0) {
+        label.textContent = '未選教練';
+    } else if (picked === 1) {
+        const only = Array.from(boxes).find(b => b.checked);
+        label.textContent = only ? only.closest('label').innerText.trim() : `${picked} 位教練`;
+    } else {
+        label.textContent = `${picked} 位教練`;
+    }
+}
+
+function initCoachFilter() {
+    const wrap = document.getElementById('coachFilterWrap');
+    const btn = document.getElementById('coachFilterBtn');
+    const panel = document.getElementById('coachFilterPanel');
+    const allBox = document.getElementById('coachFilterAll');
+    const options = document.getElementById('coachFilterOptions');
+    if (!wrap || !btn || !panel) return;
+
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        panel.classList.toggle('hidden');
+    });
+    document.addEventListener('click', function(e) {
+        if (!wrap.contains(e.target)) panel.classList.add('hidden');
+    });
+
+    if (allBox) {
+        allBox.addEventListener('change', function() {
+            const boxes = document.querySelectorAll('.coach-filter-item');
+            selectedCoachIds = new Set();
+            boxes.forEach(b => {
+                b.checked = allBox.checked;
+                if (allBox.checked) selectedCoachIds.add(b.value);
+            });
+            updateCoachFilterLabel();
+            if (calendar) calendar.refetchEvents();
+        });
+    }
+
+    if (options) {
+        options.addEventListener('change', function(e) {
+            if (!e.target.classList.contains('coach-filter-item')) return;
+            selectedCoachIds = new Set(
+                Array.from(document.querySelectorAll('.coach-filter-item'))
+                    .filter(b => b.checked)
+                    .map(b => b.value)
+            );
+            updateCoachFilterLabel();
+            if (calendar) calendar.refetchEvents();
+        });
+    }
 }
 
 // ============================================================
@@ -640,6 +1021,8 @@ function openCourseModal(info) {
     
     document.getElementById('courseDate').value = localISOTime.split('T')[0];
     document.getElementById('startTime').value = padZero(startDate.getHours()) + ':' + padZero(startDate.getMinutes());
+    const courseDateWeekdayEl = document.getElementById('courseDateWeekday');
+    if (courseDateWeekdayEl) courseDateWeekdayEl.textContent = weekdayLabel(document.getElementById('courseDate').value);
     
     const diffMs = info.end - info.start;
     let diffMins = diffMs / 60000;
@@ -687,6 +1070,36 @@ function openEditCourseModal(event) {
     }
     
     document.getElementById('editCourseStatus').value = event.extendedProps.status || 'scheduled';
+    const editLocationSelect = document.getElementById('editLocation');
+    if (editLocationSelect) editLocationSelect.value = event.extendedProps.location || 'court_out_1';
+
+    // 調課用的日期/時間欄位
+    const start = event.start;
+    const end = event.end;
+    if (start) {
+        document.getElementById('editCourseDate').value = toLocalDateStr(start);
+        document.getElementById('editStartTime').value = padZero(start.getHours()) + ':' + padZero(start.getMinutes());
+        updateEditCourseWeekday();
+
+        const durationSelect = document.getElementById('editCourseDuration');
+        if (durationSelect) {
+            let mins = end ? Math.round((end - start) / 60000) : 60;
+            if (mins <= 0) mins = 60;
+            // 現有課程的長度理論上都是 60/90/120，但萬一有例外也要能正確帶出來，
+            // 不然存檔時會被硬改成清單裡的第一個選項（等於偷偷改短課程長度）
+            if (!Array.from(durationSelect.options).some(o => o.value === String(mins))) {
+                const opt = document.createElement('option');
+                opt.value = String(mins);
+                opt.textContent = `${mins} 分鐘`;
+                durationSelect.appendChild(opt);
+            }
+            durationSelect.value = String(mins);
+        }
+    }
+
+    // 固定課程的其中一堂：提醒調課只影響這一堂
+    const moveHint = document.getElementById('editRecurringMoveHint');
+    if (moveHint) moveHint.classList.toggle('hidden', !event.extendedProps.is_recurring);
     
     const isTrial = event.extendedProps.is_trial || false;
     document.getElementById('editIsTrial').checked = isTrial;
@@ -703,6 +1116,12 @@ function openEditCourseModal(event) {
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+}
+
+function updateEditCourseWeekday() {
+    const input = document.getElementById('editCourseDate');
+    const label = document.getElementById('editCourseDateWeekday');
+    if (input && label) label.textContent = weekdayLabel(input.value);
 }
 
 // 目前開啟的編輯視窗對應的課程是不是固定課程帶入的（決定刪除時要不要問範圍）
@@ -752,6 +1171,20 @@ function closeEditCourseModal() {
 // ============================================================
 function initModalEvents() {
     document.getElementById('cancelCourseBtn').addEventListener('click', closeCourseModal);
+
+    // 日期選好後即時更新旁邊的星期幾提示，手動輸入日期時比較不會排錯天
+    const courseDateInput = document.getElementById('courseDate');
+    const courseDateWeekdayEl = document.getElementById('courseDateWeekday');
+    if (courseDateInput && courseDateWeekdayEl) {
+        courseDateInput.addEventListener('change', function() {
+            courseDateWeekdayEl.textContent = weekdayLabel(this.value);
+        });
+    }
+
+    const editCourseDateInput = document.getElementById('editCourseDate');
+    if (editCourseDateInput) {
+        editCourseDateInput.addEventListener('change', updateEditCourseWeekday);
+    }
 
     // 手動「新增課程」按鈕：清單檢視（手機版的 listDay/listWeek）沒有時間格可以
     // 拖曳選取，select 事件不會觸發，所以需要這個永遠可點的按鈕當作另一個入口，
@@ -844,9 +1277,23 @@ function initModalEvents() {
             const isTrial = document.getElementById('editIsTrial').checked;
             const isRecurring = document.getElementById('editIsRecurring') ? document.getElementById('editIsRecurring').checked : false;
 
+            // 調課：日期＋開始時間＋長度組回 start/end（跟新增課程的算法一致）
+            const editDateStr = document.getElementById('editCourseDate').value;
+            const editTimeStr = document.getElementById('editStartTime').value;
+            const editDuration = parseInt(document.getElementById('editCourseDuration').value, 10) || 60;
+            const editStart = new Date(`${editDateStr}T${editTimeStr}:00`);
+            const editEnd = new Date(editStart.getTime() + editDuration * 60000);
+            if (isNaN(editStart.getTime())) {
+                alert('請填寫正確的日期與開始時間。');
+                return;
+            }
+
             const payload = {
                 title: document.getElementById('editStudentName').value,
                 coach_id: document.getElementById('editCoachName').value,
+                location: document.getElementById('editLocation').value,
+                start_time: editStart.toISOString(),
+                end_time: editEnd.toISOString(),
                 status: document.getElementById('editCourseStatus').value,
                 is_trial: isTrial,
                 trial_count: isTrial ? parseInt(document.getElementById('editTrialCount').value, 10) : null,

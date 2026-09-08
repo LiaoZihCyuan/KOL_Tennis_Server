@@ -239,7 +239,13 @@ class CourseService:
         elif became_scheduled:
             CourseService._restore_bookings(course)
 
-        if is_recurring:
+        # 只有「原本不是固定課、這次才被標記為固定」的課才建立模板。
+        # 已經掛在模板底下的課代表它是某個固定系列的其中一堂，編輯單堂（例如學生
+        # 想調課，把這一堂改到別的時間/場地）只應該影響這一堂：若照樣拿新的時段去
+        # upsert，_upsert_template_from_course 會因為找不到相符的模板而「新建一個」，
+        # 舊模板卻還留著，結果之後每週都會生出兩堂課。要整個系列換時間請改
+        # 「每週固定課表」頁面。
+        if is_recurring and course.template_id is None:
             student_ids = [b.user_id for b in course.bookings if b.deleted_at is None]
             CourseService._upsert_template_from_course(course, student_ids)
 

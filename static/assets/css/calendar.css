@@ -1,6 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Serif+TC:wght@600;700&display=swap');
 
 body { font-family: 'Inter', 'Microsoft JhengHei', sans-serif; }
+
+/* 教練姓氏：用襯線字體跟學生姓名/其他文字做出區隔，方便一眼辨識 */
+.coach-name-text {
+    font-family: 'Noto Serif TC', 'Microsoft JhengHei', serif;
+}
 
 /* 固定側邊欄寬度，防止被右側內容擠壓 */
 aside {
@@ -17,9 +22,12 @@ aside {
     position: relative;
 }
 
-/* 設定課表最小寬度，確保週視圖下場地不會過窄 */
+/* 課表寬度改由 FullCalendar 的 dayMinWidth 控制（見 calendar.js）。
+   以前是在這裡用 min-width:1800px 把整個行事曆撐寬、讓外層容器產生橫向捲軸，
+   但那樣捲動的是「整個行事曆」，左側時間欄會跟著被推出畫面。改用 dayMinWidth
+   之後橫向捲軸落在 FullCalendar 自己的 scrollgrid 內，時間欄會被固定在左側，
+   往右捲時仍然看得到對應的時間。 */
 #calendar {
-    min-width: 1800px; 
     height: 100%;
 }
 

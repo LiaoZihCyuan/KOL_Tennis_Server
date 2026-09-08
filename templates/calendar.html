@@ -59,6 +59,45 @@
             <span>＋</span> 新增課程
         </button>
 
+        <!-- 通知：僅小編/教練看得到。點開顯示小編自行新增的公告（教練請假、貴賓來訪等，
+             小編可刪除），以及目前檢視範圍（本日/本週）內的自動請假名單 -->
+        <div id="leaveInfoWrap" class="relative hidden">
+            <button id="leaveInfoBtn" type="button" class="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-xs text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                <span>通知</span>
+                <span id="leaveInfoCount" class="hidden min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-4 text-center"></span>
+            </button>
+            <div id="leaveInfoPanel" class="hidden absolute left-0 top-full mt-2 w-[min(340px,90vw)] max-h-[460px] overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-2">
+                <div class="pb-2 mb-2 border-b border-slate-100">
+                    <div class="text-[11px] font-bold text-slate-400 px-1 pb-1.5 uppercase tracking-wide">公告</div>
+                    <div id="notificationList" class="space-y-1.5 mb-2"></div>
+                    <div id="addNotificationRow" class="hidden gap-1.5 px-1">
+                        <input type="text" id="notificationInput" placeholder="輸入通知內容，例如：王教練 8/25 請假" class="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        <button type="button" id="addNotificationBtn" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0">新增</button>
+                    </div>
+                </div>
+
+                <div id="leaveInfoScopeLabel" class="text-[11px] font-bold text-slate-400 px-1 pb-1.5 uppercase tracking-wide"></div>
+                <div id="leaveInfoList" class="space-y-1.5"></div>
+            </div>
+        </div>
+
+        <!-- 教練篩選：只有小編看得到（教練自己的課表本來就只有自己的課，不需要篩選）。
+             用勾選框而非下拉選單，才能同時勾選多位教練互相比較 -->
+        <div id="coachFilterWrap" class="admin-only relative">
+            <button id="coachFilterBtn" type="button" class="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-xs text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                <span id="coachFilterLabel">全部教練</span>
+                <span class="text-[9px] text-slate-400">▼</span>
+            </button>
+            <div id="coachFilterPanel" class="hidden absolute left-0 top-full mt-2 w-[min(220px,90vw)] max-h-[420px] overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-2">
+                <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+                    <input type="checkbox" id="coachFilterAll" class="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5" checked>
+                    <span class="text-xs font-bold text-slate-700">全部教練</span>
+                </label>
+                <div class="my-1 border-t border-slate-100"></div>
+                <div id="coachFilterOptions" class="space-y-0.5"></div>
+            </div>
+        </div>
+
         <!-- 週次下拉選單 -->
         <select id="weekSelector" class="text-xs bg-white border border-slate-200 rounded-md px-2 py-1.5 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"></select>
 
@@ -68,16 +107,16 @@
             <button id="viewWeekBtn" type="button" class="px-3 py-1 rounded-md bg-white shadow-sm text-blue-600 font-bold transition-all">週</button>
         </div>
 
-        <!-- 導航控制 -->
+        <!-- 導航控制：日期直接夾在前後翻頁鍵中間，不再另外放一顆「今天」按鈕——
+             日期本身就是回到今天的按鈕（點一下即跳回今日/本週）。
+             headerToolbar 關掉了 FullCalendar 自己的標題，清單檢視在當天沒有課時
+             完全不會顯示日期，所以這個標籤要永遠看得到。 -->
         <div class="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200/60">
             <button onclick="calendar.prev()" class="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-600">◀</button>
-            <button onclick="calendar.today()" class="px-3 py-1 hover:bg-white hover:shadow-sm rounded-md text-xs font-bold text-slate-700 transition-all">今天</button>
+            <button id="currentDateLabel" type="button" onclick="calendar.today()" title="點一下回到今天"
+                class="px-3 py-1 hover:bg-white hover:shadow-sm rounded-md text-sm font-bold text-slate-700 transition-all whitespace-nowrap"></button>
             <button onclick="calendar.next()" class="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-600">▶</button>
         </div>
-
-        <!-- 目前顯示的日期/週期：headerToolbar 關掉了 FullCalendar 自己的標題，
-             清單檢視在當天沒有課時完全不會顯示日期，這裡補一個永遠看得到的標籤 -->
-        <span id="currentDateLabel" class="text-sm font-bold text-slate-700 px-1 whitespace-nowrap"></span>
     </div>
 {% endblock %}
 
@@ -101,7 +140,7 @@
             <form id="courseForm" class="p-6 space-y-4">
                 <div class="flex gap-4">
                     <div class="flex-1">
-                        <label class="block text-xs font-bold text-slate-500 mb-1">日期</label>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">日期 <span id="courseDateWeekday" class="font-normal text-slate-400"></span></label>
                         <input type="date" id="courseDate" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
                     </div>
                     <div class="flex-1">
@@ -198,6 +237,42 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-500 mb-1">學生姓名</label>
                     <input type="text" id="editStudentName" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
+                </div>
+
+                <!-- 調課：直接改日期/時間，不用刪掉重建 -->
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">日期 <span id="editCourseDateWeekday" class="font-normal text-slate-400"></span></label>
+                        <input type="date" id="editCourseDate" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">開始時間</label>
+                        <input type="time" id="editStartTime" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">課程時間長度</label>
+                        <select id="editCourseDuration" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <option value="60">1 小時</option>
+                            <option value="90">1.5 小時</option>
+                            <option value="120">2 小時</option>
+                        </select>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">場地</label>
+                        <select id="editLocation" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <option value="court_out_1">室外場 1</option>
+                            <option value="court_out_2">室外場 2</option>
+                            <option value="court_in">室內場</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 這是固定課程的其中一堂時，提醒調課只影響這一堂 -->
+                <div id="editRecurringMoveHint" class="hidden p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 leading-relaxed">
+                    這是<span class="font-bold">固定課程</span>的其中一堂。在這裡改時間/場地<span class="font-bold">只會調整這一堂</span>，之後每週仍會照原本的時段帶入。要整個系列換時間請到「每週固定課表」修改。
                 </div>
 
                 <div class="flex gap-4">
