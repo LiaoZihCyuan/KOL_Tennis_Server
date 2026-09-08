@@ -20,6 +20,28 @@ class UserService:
             return None
 
     @staticmethod
+    def _normalize_username(value: Any) -> Optional[str]:
+        """空字串一律存成 NULL——unique 欄位允許多筆 NULL，但只允許一筆空字串。"""
+        if value is None:
+            return None
+        value = str(value).strip()
+        return value or None
+
+    @staticmethod
+    def _assert_username_available(username: Optional[str], exclude_user_id: Optional[uuid.UUID] = None) -> None:
+        """帳號重複時丟出中文錯誤，而不是讓資料庫的 unique 違反變成 500。"""
+        if not username:
+            return
+        stmt = db.session.query(User).filter(
+            User.username == username,
+            User.deleted_at.is_(None)
+        )
+        if exclude_user_id:
+            stmt = stmt.filter(User.id != exclude_user_id)
+        if stmt.first():
+            raise ValueError(f"帳號「{username}」已被使用，請換一個")
+
+    @staticmethod
     def get_all_users() -> List[User]:
         return db.session.query(User).filter(User.deleted_at.is_(None)).order_by(User.created_at.desc()).all()
 
@@ -76,6 +98,13 @@ class UserService:
         password = data.get("password") or phone
         password_hash = generate_password_hash(password) if password else None
 
+        # 登入帳號：沒指定就沿用顯示名稱（跟舊行為一致，小編習慣用「王教練」登入）。
+        # 只有真的會登入的人（有密碼）才給帳號，純名冊學生留 NULL 不佔用帳號名稱。
+        username = UserService._normalize_username(data.get("username"))
+        if not username and password_hash:
+            username = UserService._normalize_username(display_name)
+        UserService._assert_username_available(username)
+
         gender_val = None
         if data.get("gender"):
             try:
@@ -85,6 +114,7 @@ class UserService:
 
         new_user = User(
             display_name=display_name,
+            username=username,
             nickname=data.get("nickname"),
             gender=gender_val,
             phone=phone,
@@ -144,8 +174,23 @@ class UserService:
                 user.gender = Gender(data["gender"].lower())
             except ValueError:
                 pass
+        if "username" in data:
+            new_username = UserService._normalize_username(data["username"])
+            UserService._assert_username_available(new_username, exclude_user_id=user.id)
+            user.username = new_username
         if "password" in data and data["password"]:
             user.password_hash = generate_password_hash(data["password"])
+            # 設了密碼就代表這個人要能登入，但沒帳號的話登不進來（登入不再比對
+            # display_name），所以補一個預設帳號，避免建立出登不進去的帳號。
+            if not user.username:
+                fallback = UserService._normalize_username(user.display_name)
+                try:
+                    UserService._assert_username_available(fallback, exclude_user_id=user.id)
+                    user.username = fallback
+                except ValueError:
+                    raise ValueError(
+                        f"已設定密碼，但預設帳號「{fallback}」已被使用，請另外指定「登入帳號」"
+                    )
 
         db.session.commit()
         return user

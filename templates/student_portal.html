@@ -132,9 +132,21 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">修改密碼 (若不修改請留空)</label>
-                    <input type="password" id="profPassword" placeholder="輸入新密碼..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                    <div class="text-xs font-bold text-slate-700">修改登入帳號 / 密碼</div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">登入帳號</label>
+                        <input type="text" id="profUsername" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">新密碼 (若不修改請留空)</label>
+                        <input type="password" id="profPassword" placeholder="輸入新密碼..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">目前密碼</label>
+                        <input type="password" id="profCurrentPassword" placeholder="要改帳號或密碼時才需填寫" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                        <p class="text-[11px] text-slate-400 mt-1">為了安全，變更帳號或密碼需要輸入目前的密碼。</p>
+                    </div>
                 </div>
 
                 <div class="pt-3">
@@ -224,6 +236,7 @@
 {% block scripts %}
 <script>
 let currentStudentId = null;
+let currentProfileUsername = '';
 const LIFF_ID = '2011132056-28GhLpgi';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -291,6 +304,10 @@ async function loadStudentFullProfile(userId) {
         document.getElementById('portalPoints').textContent = `剩餘 ${u.credits} 點`;
 
         // Fill Profile form
+        currentProfileUsername = u.username || '';
+        document.getElementById('profUsername').value = currentProfileUsername;
+        document.getElementById('profCurrentPassword').value = '';
+        document.getElementById('profPassword').value = '';
         document.getElementById('profDisplayName').value = u.display_name || '';
         document.getElementById('profNickname').value = u.nickname || '';
         document.getElementById('profPhone').value = u.phone || '';
@@ -519,6 +536,20 @@ document.getElementById('portalProfileForm').addEventListener('submit', async fu
     };
     const pwd = document.getElementById('profPassword').value;
     if (pwd) payload.password = pwd;
+
+    // 帳號留空代表「不變更」，不是把帳號清掉——清掉會讓自己登不進來
+    const uname = document.getElementById('profUsername').value.trim();
+    if (uname && uname !== (currentProfileUsername || '')) payload.username = uname;
+
+    // 只有真的要改帳號/密碼時才需要目前密碼（後端也是這樣判斷）
+    if (payload.password || payload.username) {
+        const cur = document.getElementById('profCurrentPassword').value;
+        if (!cur) {
+            alert('要變更登入帳號或密碼，請先輸入目前的密碼。');
+            return;
+        }
+        payload.current_password = cur;
+    }
 
     try {
         const res = await authFetch(`/api/users/${currentStudentId}`, {

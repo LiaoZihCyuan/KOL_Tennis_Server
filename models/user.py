@@ -25,6 +25,11 @@ class User(BaseModel):
     __tablename__ = "users"
 
     line_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
+    # 登入帳號。刻意跟 display_name 分開：display_name 是課表上顯示的名字，改名很常見，
+    # 而且沒有唯一性（名冊裡本來就有同名的人），拿它當登入識別會抓錯人。只有真的會
+    # 登入的使用者（有密碼者）才需要 username，純排課名冊的學生留 NULL 即可
+    # （Postgres 的 unique 允許多筆 NULL）。
+    username: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

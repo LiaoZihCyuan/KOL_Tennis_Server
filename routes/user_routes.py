@@ -1,6 +1,7 @@
 import uuid
 import logging
 from flask import Blueprint, request, jsonify, g
+from werkzeug.security import check_password_hash
 from extensions import db
 from models.user import User
 from models.booking import Booking
@@ -144,6 +145,7 @@ def get_user_full_profile(user_id):
             "user": {
                 "id": str(user.id),
                 "display_name": user.display_name,
+                "username": user.username,
                 "nickname": user.nickname,
                 "phone": user.phone,
                 "email": user.email,
@@ -194,7 +196,7 @@ def create_user():
         return jsonify({"error": "Internal server error"}), 500
 
 
-SELF_SERVICE_FIELDS = {"display_name", "nickname", "phone", "gender", "line_id", "line_display_name", "password"}
+SELF_SERVICE_FIELDS = {"display_name", "username", "nickname", "phone", "gender", "line_id", "line_display_name", "password"}
 
 
 @user_bp.route("/<user_id>", methods=["PUT"])
@@ -208,12 +210,28 @@ def update_user(user_id):
         uid = uuid.UUID(user_id)
         current_user = g.current_user
 
+        # current_password is a credential used for verification, never a column to
+        # write — pull it out before any whitelisting so it can't be persisted, and
+        # so the whitelist below doesn't discard it before we get to check it.
+        current_password = (data.pop("current_password", "") or "")
+
         if current_user.role.value != "admin":
             # Non-admin users may only edit their own profile, and only
             # identity/contact fields — never credits, notes, level, etc.
             if current_user.id != uid:
                 return jsonify({"error": "權限不足，僅能編輯自己的資料"}), 403
             data = {k: v for k, v in data.items() if k in SELF_SERVICE_FIELDS}
+
+            # Changing your own account name or password requires proving you know
+            # the current password, so a walked-away-from session can't be used to
+            # take the account over. Admins resetting someone else's credentials
+            # are exempt — they are the recovery path when a user forgets it.
+            sensitive = bool(data.get("password")) or "username" in data
+            if sensitive:
+                if not current_user.password_hash or not check_password_hash(
+                    current_user.password_hash, current_password
+                ):
+                    return jsonify({"error": "目前密碼不正確"}), 403
 
         user = UserService.update_user(uid, data)
         if not user:
@@ -246,6 +264,7 @@ def get_users():
             result.append({
                 "id": str(user.id),
                 "display_name": user.display_name,
+                "username": user.username,
                 "email": user.email,
                 "line_id": user.line_id,
                 "role": user.role.value,

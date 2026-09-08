@@ -88,10 +88,11 @@
              才塞得進一個畫面（方便整天截圖）。桌機側邊欄本來就常駐，放這裡
              一樣看得到。 -->
         <div class="p-3 border-t border-slate-100 flex items-center justify-between gap-2 shrink-0">
-            <div id="user-info-box" class="min-w-0">
+            <button type="button" id="user-info-box" onclick="openMyAccountModal()" title="修改我的登入帳號 / 密碼"
+                class="min-w-0 text-left px-2 py-1 -mx-2 rounded-lg hover:bg-slate-100 transition-colors">
                 <div id="user-display-name" class="text-xs font-bold text-slate-700 truncate">管理員 / 小編</div>
                 <div id="user-role-badge" class="text-[10px] text-blue-600 font-semibold uppercase tracking-wider">ADMIN</div>
-            </div>
+            </button>
             <button id="auth-action-btn" onclick="handleAuthAction()" class="shrink-0 px-2.5 py-1 text-xs text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-md transition-all">
                 切換帳號
             </button>
@@ -128,7 +129,52 @@
     </main>
 
     {% block modals %}{% endblock %}
-    
+
+    <!-- 我的帳號：讓每個人（教練也包含在內）自己改登入帳號與密碼。放在 base.html
+         是因為教練只看得到「排課行事曆」和「教練時數統計」兩頁，沒有個人資料頁
+         可以掛，做成共用的 modal 才能從任何頁面的側邊欄開啟。 -->
+    <div id="myAccountModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-slate-900/50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-[400px] max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800 text-base">我的帳號</h3>
+                <button type="button" onclick="closeMyAccountModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <form id="myAccountForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">登入帳號</label>
+                    <input type="text" id="myAccountUsername" autocomplete="username" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <p class="text-[11px] text-slate-400 mt-1">下次登入要用的帳號。跟課表上顯示的名字是分開的，改這裡不會影響課表。</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">新密碼 (不改請留空)</label>
+                    <input type="password" id="myAccountNewPassword" autocomplete="new-password" placeholder="輸入新密碼..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">確認新密碼</label>
+                    <input type="password" id="myAccountConfirmPassword" autocomplete="new-password" placeholder="再輸入一次新密碼..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                    <label class="block text-xs font-bold text-amber-900 mb-1">目前密碼</label>
+                    <input type="password" id="myAccountCurrentPassword" autocomplete="current-password" placeholder="輸入目前的密碼以確認身分" class="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-amber-500">
+                    <p class="text-[11px] text-amber-700 mt-1">為了安全，變更帳號或密碼都需要先輸入目前的密碼。</p>
+                </div>
+
+                <div id="myAccountError" class="hidden p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-600 font-medium"></div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeMyAccountModal()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">取消</button>
+                    <button type="submit" id="myAccountSubmitBtn" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">儲存變更</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // 所有呼叫自家 /api/... 的 fetch 都應該用這個，會自動帶上登入 token，
         // 並且在 token 失效/過期 (401) 時自動導回登入頁。
@@ -237,6 +283,105 @@
                 window.location.href = '/login';
             }
         }
+
+        // ============================================================
+        // 我的帳號 (修改登入帳號 / 密碼)
+        // ============================================================
+        let myAccountCurrentUsername = '';
+
+        function openMyAccountModal() {
+            const userStr = localStorage.getItem('kol_user');
+            if (!userStr) { window.location.href = '/login'; return; }
+
+            const modal = document.getElementById('myAccountModal');
+            if (!modal) return;
+
+            document.getElementById('myAccountForm').reset();
+            document.getElementById('myAccountError').classList.add('hidden');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            // 帶入目前的帳號，讓使用者知道現在是用什麼登入的
+            let user = null;
+            try { user = JSON.parse(userStr); } catch(e) {}
+            if (!user) return;
+            authFetch(`/api/users/${user.id}/full-profile`)
+                .then(res => res.json())
+                .then(data => {
+                    const u = (data && data.user) || {};
+                    myAccountCurrentUsername = u.username || '';
+                    document.getElementById('myAccountUsername').value = myAccountCurrentUsername;
+                })
+                .catch(() => {});
+        }
+
+        function closeMyAccountModal() {
+            const modal = document.getElementById('myAccountModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('myAccountForm');
+            if (!form) return;
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const errBox = document.getElementById('myAccountError');
+                const submitBtn = document.getElementById('myAccountSubmitBtn');
+                const showError = (msg) => {
+                    errBox.textContent = msg;
+                    errBox.classList.remove('hidden');
+                };
+                errBox.classList.add('hidden');
+
+                const username = document.getElementById('myAccountUsername').value.trim();
+                const newPwd = document.getElementById('myAccountNewPassword').value;
+                const confirmPwd = document.getElementById('myAccountConfirmPassword').value;
+                const currentPwd = document.getElementById('myAccountCurrentPassword').value;
+
+                const payload = {};
+                // 帳號沒動就不送，避免「沒改帳號」也被當成敏感操作
+                if (username && username !== myAccountCurrentUsername) payload.username = username;
+                if (newPwd) {
+                    if (newPwd !== confirmPwd) return showError('兩次輸入的新密碼不一致。');
+                    payload.password = newPwd;
+                }
+
+                if (!payload.username && !payload.password) {
+                    return showError('沒有任何變更。請輸入新的登入帳號或新密碼。');
+                }
+                if (!currentPwd) return showError('請輸入目前的密碼以確認身分。');
+                payload.current_password = currentPwd;
+
+                let user = null;
+                try { user = JSON.parse(localStorage.getItem('kol_user')); } catch(e) {}
+                if (!user) { window.location.href = '/login'; return; }
+
+                submitBtn.disabled = true;
+                try {
+                    const res = await authFetch(`/api/users/${user.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.error || '更新失敗');
+
+                    closeMyAccountModal();
+                    // 帳號或密碼變了，舊的登入資訊已經不對，請使用者重新登入
+                    alert('帳號資料已更新，請使用新的帳號密碼重新登入。');
+                    localStorage.removeItem('kol_token');
+                    localStorage.removeItem('kol_user');
+                    window.location.href = '/login';
+                } catch(err) {
+                    showError(err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            });
+        });
 
         document.addEventListener('DOMContentLoaded', checkAuthState);
     </script>

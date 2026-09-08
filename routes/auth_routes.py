@@ -31,9 +31,13 @@ def login():
     if not identifier or not password:
         return jsonify({"error": "帳號與密碼為必填"}), 400
 
-    # Search user by display_name, phone, email, or line_id
+    # Search user by username, phone, email, or line_id.
+    # display_name is deliberately NOT a login identifier: it is the name shown on
+    # the calendar, it gets renamed, and it is not unique (the roster legitimately
+    # contains people with the same name), so matching on it could log the wrong
+    # person in. Every account that can actually log in has a unique username.
     user = db.session.query(User).filter(
-        (User.display_name == identifier) |
+        (User.username == identifier) |
         (User.phone == identifier) |
         (User.email == identifier) |
         (User.line_id == identifier),
