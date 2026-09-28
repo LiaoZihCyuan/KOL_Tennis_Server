@@ -149,7 +149,7 @@ async function fetchLeaveRequests() {
         data.forEach(r => {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-50/80 transition-colors';
-            const dt = r.start_time ? new Date(r.start_time).toLocaleString('zh-TW') : '-';
+            const dt = r.start_time ? new Date(r.start_time).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }) : '-';
 
             tr.innerHTML = `
                 <td class="px-6 py-4 text-xs font-mono font-bold text-slate-700">${dt}</td>
@@ -231,7 +231,7 @@ async function fetchRenewals() {
         data.forEach(r => {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-50/80 transition-colors';
-            const dt = r.created_at ? new Date(r.created_at).toLocaleString('zh-TW') : '-';
+            const dt = r.created_at ? new Date(r.created_at).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }) : '-';
             const isPending = r.status === 'pending';
 
             tr.innerHTML = `

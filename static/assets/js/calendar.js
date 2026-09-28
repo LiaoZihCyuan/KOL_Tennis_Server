@@ -24,6 +24,71 @@ const locNames = {
     'court_in': '室內場'
 };
 
+// ============================================================
+// 時區：教練/小編偶爾會在國外操作，但排課永遠要用台灣時間，不能跟著裝置
+// 所在地時區跑掉。FullCalendar 本身設成 timeZone:'UTC'，讓它完全不去看
+// 瀏覽器的本地時區；但這樣一來它交給我們、以及要我們交給它的 Date 物件，
+// 「UTC 欄位」代表的其實是台北的牆上時間（fake-UTC 技巧，因為台灣沒有
+// 日光節約時間，固定 +8 沒有例外）。下面這組函式就是負責在這個「假時間」
+// 跟資料庫/API 真正使用的絕對時間之間互相轉換，全部集中在這裡，其餘地方
+// 一律呼叫這些函式，不要自己手算。
+const TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+// 真正的絕對時間（Date 或 ISO 字串）→ FullCalendar 用的假時間（UTC 欄位＝台北時間）
+function toFcDate(input) {
+    const real = input instanceof Date ? input : new Date(input);
+    return new Date(real.getTime() + TAIPEI_OFFSET_MS);
+}
+
+// FullCalendar 給的假時間 → 真正的絕對時間，要送回後端一律先轉這個
+function fromFcDate(fcDate) {
+    return new Date(fcDate.getTime() - TAIPEI_OFFSET_MS);
+}
+
+// 把「YYYY-MM-DD」+「HH:MM」這種使用者在表單上輸入、代表台北牆上時間的
+// 字串，組成正確的 ISO 字串。直接帶 +08:00 offset，不透過會被瀏覽器當地
+// 時區污染的 new Date(`${d}T${t}:00`) 寫法。
+function taipeiWallTimeToDate(dateStr, timeStr) {
+    return new Date(`${dateStr}T${timeStr}:00+08:00`);
+}
+
+// 讀「假時間」Date 物件的台北年月日/時分，一律用 getUTC*，不能用本地的
+// getFullYear/getHours 等——那些是瀏覽器本地時區，在國外裝置上會讀錯。
+function fcDateStr(d) {
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${m}-${day}`;
+}
+function fcTimeStr(d) {
+    return padZero(d.getUTCHours()) + ':' + padZero(d.getUTCMinutes());
+}
+
+// 把「絕對時間」格式化成台北時間文字，用於所有需要顯示給人看的地方，
+// 不依賴裝置本地時區，也不需要經過 fc 假時間轉換。
+function formatTaipei(input, opts) {
+    const real = input instanceof Date ? input : new Date(input);
+    return real.toLocaleString('zh-TW', Object.assign({ timeZone: 'Asia/Taipei' }, opts));
+}
+
+// 取得「台北現在是幾月幾號」，回傳一個代表該西曆日期、時間為裝置本地 0 點
+// 的 Date（用來餵給既有以本地 getter 為基礎的 getMonday/toLocalDateStr 等
+// 函式）。不能直接用 new Date()：那是裝置的「現在」，人在國外時尤其可能
+// 跟台北的今天差一天。
+function getTaipeiToday() {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const map = {};
+    parts.forEach(p => { map[p.type] = p.value; });
+    return new Date(Number(map.year), Number(map.month) - 1, Number(map.day));
+}
+
+// 把 FullCalendar 的假時間換成「純粹代表同一個西曆日期、本地 0 點」的
+// Date，這樣既有以本地 getter 為基礎的 getMonday/toLocalDateStr 才能沿用。
+function fcDateToLocalPlainDate(d) {
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 // 用「YYYY-MM-DD」字串（date input 的 value）算出星期幾，不透過 new Date(dateStr)
 // 那種會被當成 UTC 解析的寫法——雖然台灣是 UTC+8 這裡不會真的跨日，但沿用專案裡
 // 其他地方（toLocalDateStr/getMonday）已經在用的「拆解年月日組本地時間」寫法比較保險。
@@ -45,21 +110,23 @@ function weekdayLabel(dateStr) {
 function currentDateLabelText(dateInfo) {
     const t = dateInfo.view.type;
     const isDay = t === 'resourceTimeGridDay' || t === 'listDay';
+    // dateInfo.start/end 是 FullCalendar 的假時間（UTC 欄位＝台北時間），
+    // 這裡全部要用 getUTC*，不能用本地 getter。
     const start = dateInfo.start;
 
     if (isDay) {
-        return `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日（週${weekdayChar(start)}）`;
+        return `${start.getUTCFullYear()}年${start.getUTCMonth() + 1}月${start.getUTCDate()}日（週${WEEKDAY_CHARS[start.getUTCDay()]}）`;
     }
 
     // dateInfo.end 是「不含」的結束時間（下週一 00:00），往回推一天才是這週最後一天
-    const last = new Date(dateInfo.end);
-    last.setDate(last.getDate() - 1);
+    const last = new Date(dateInfo.end.getTime());
+    last.setUTCDate(last.getUTCDate() - 1);
 
-    const head = `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日（${weekdayChar(start)}）`;
+    const head = `${start.getUTCFullYear()}年${start.getUTCMonth() + 1}月${start.getUTCDate()}日（${WEEKDAY_CHARS[start.getUTCDay()]}）`;
     // 同一年就不重複寫年份，跨年時才補上，避免標籤過長
-    const tail = start.getFullYear() === last.getFullYear()
-        ? `${last.getMonth() + 1}月${last.getDate()}日（${weekdayChar(last)}）`
-        : `${last.getFullYear()}年${last.getMonth() + 1}月${last.getDate()}日（${weekdayChar(last)}）`;
+    const tail = start.getUTCFullYear() === last.getUTCFullYear()
+        ? `${last.getUTCMonth() + 1}月${last.getUTCDate()}日（${WEEKDAY_CHARS[last.getUTCDay()]}）`
+        : `${last.getUTCFullYear()}年${last.getUTCMonth() + 1}月${last.getUTCDate()}日（${WEEKDAY_CHARS[last.getUTCDay()]}）`;
     return `${head} – ${tail}`;
 }
 
@@ -147,8 +214,7 @@ function renderLeaveInfoPanel(courses) {
     }
 
     list.innerHTML = entries.map(e => {
-        const dt = new Date(e.startTime);
-        const dtStr = dt.toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+        const dtStr = formatTaipei(e.startTime, { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
         const statusClass = e.approved ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700';
         const statusText = e.approved ? '已請假' : '待審核';
         return `
@@ -280,9 +346,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     calendar = new FullCalendar.Calendar(calendarEl, {
         locale: 'zh-tw',
+        // 完全不看瀏覽器的本地時區，一律用 UTC 引擎渲染／計算格子位置。實際上
+        // 我們把所有事件時間都先用 toFcDate() 位移成「UTC 欄位＝台北時間」的
+        // 假時間再交給它（見下面 events 回呼與各處 fromFcDate/toFcDate 呼叫），
+        // 這樣教練不管人在哪個時區，看到、拖曳出來的格子永遠是台北時間，不會
+        // 因為裝置所在地不同而跑掉。
+        timeZone: 'UTC',
         initialView: isMobileViewport() ? dayViewName() : 'resourceTimeGridWeek',
         datesAboveResources: true,
-        
+
         resources: [
             { id: 'court_out_1', title: '室外場 1' },
             { id: 'court_out_2', title: '室外場 2' },
@@ -351,11 +423,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // 拖曳調課事件處理 (Drag & Drop)
         eventDrop: function(info) {
             const courseId = info.event.id;
-            const newStart = info.event.start;
-            const newEnd = info.event.end;
+            // info.event.start/end 是 FullCalendar 的假時間，先換回真正的
+            // 絕對時間才能送給後端、也才能正確格式化成台北時間給人看
+            const newStart = fromFcDate(info.event.start);
+            const newEnd = fromFcDate(info.event.end);
             const newLocation = info.event.getResources()[0] ? info.event.getResources()[0].id : 'court_out_1';
 
-            if (!confirm(`確定將此課程調移至：\n時段：${newStart.toLocaleString('zh-TW')}\n場地：${newLocation}？`)) {
+            if (!confirm(`確定將此課程調移至：\n時段：${formatTaipei(newStart)}\n場地：${newLocation}？`)) {
                 info.revert();
                 return;
             }
@@ -388,10 +462,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // 週次後會整個復原，小編完全不會發現。這裡直接沿用跟 eventDrop 一樣的邏輯。
         eventResize: function(info) {
             const courseId = info.event.id;
-            const newStart = info.event.start;
-            const newEnd = info.event.end;
+            const newStart = fromFcDate(info.event.start);
+            const newEnd = fromFcDate(info.event.end);
 
-            if (!confirm(`確定調整此課程時長為：\n${newStart.toLocaleString('zh-TW')} ~ ${newEnd.toLocaleTimeString('zh-TW')}？`)) {
+            if (!confirm(`確定調整此課程時長為：\n${formatTaipei(newStart)} ~ ${formatTaipei(newEnd, { hour: '2-digit', minute: '2-digit' })}？`)) {
                 info.revert();
                 return;
             }
@@ -513,7 +587,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (currentUser && currentUser.role === 'coach') {
-                let msg = `課程名稱：${e.title}\n時間：${e.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} ~ ${e.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}\n教練：${e.extendedProps.coach_name}`;
+                const realStart = fromFcDate(e.start);
+                const realEnd = fromFcDate(e.end);
+                let msg = `課程名稱：${e.title}\n時間：${formatTaipei(realStart, {hour: '2-digit', minute:'2-digit'})} ~ ${formatTaipei(realEnd, {hour: '2-digit', minute:'2-digit'})}\n教練：${e.extendedProps.coach_name}`;
                 if (e.extendedProps.is_trial) {
                     msg += `\n【體驗課提醒】人數: ${e.extendedProps.trial_count || 1} 人，需收費: $${e.extendedProps.trial_fee || 0} 元`;
                 }
@@ -538,7 +614,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (e.extendedProps.status === 'cancelled' || e.extendedProps.leave_status === 'approved') {
                     alert('此課程已完成請假審核，時段已釋出。');
                 } else {
-                    let reason = prompt(`【申請請假】課程：${e.title}\n時間：${e.start.toLocaleString('zh-TW')}\n\n請輸入請假原因（送出後待小編審核）：`, '臨時有事請假');
+                    let reason = prompt(`【申請請假】課程：${e.title}\n時間：${formatTaipei(fromFcDate(e.start))}\n\n請輸入請假原因（送出後待小編審核）：`, '臨時有事請假');
                     if (reason !== null) {
                         authFetch(`/api/courses/${e.id}/request-leave`, {
                             method: 'POST',
@@ -563,8 +639,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 取得資料庫數據 (含學生隱私過濾與教練過濾)
         events: function(fetchInfo, successCallback, failureCallback) {
-            let startStr = fetchInfo.startStr;
-            let endStr = fetchInfo.endStr;
+            // fetchInfo.start/end 是假時間（UTC 欄位＝台北時間的檢視範圍），要先
+            // 換回真正的絕對時間，查詢 API 的區間才不會整個偏移 8 小時
+            let startStr = fromFcDate(fetchInfo.start).toISOString();
+            let endStr = fromFcDate(fetchInfo.end).toISOString();
             let url = `/api/courses?start_date=${encodeURIComponent(startStr)}&end_date=${encodeURIComponent(endStr)}`;
             
             if (currentUser) {
@@ -621,8 +699,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             id: course.course_id,
                             resourceId: course.location,
                             title: title,
-                            start: course.start_time,
-                            end: course.end_time,
+                            // API 給的是真正的絕對時間，先位移成 FullCalendar 用的假
+                            // 時間（timeZone:'UTC' 引擎），格子位置才會落在台北時間
+                            start: toFcDate(course.start_time),
+                            end: toFcDate(course.end_time),
                             backgroundColor: bgColor,
                             borderColor: borderColor,
                             extendedProps: {
@@ -681,7 +761,11 @@ document.addEventListener('DOMContentLoaded', function() {
         locale: { ...flatpickr.l10ns.zh_tw, firstDayOfWeek: 1 },
         onChange: function(selectedDates) {
             if (selectedDates.length > 0) {
-                calendar.gotoDate(selectedDates[0]);
+                // flatpickr 選出的是裝置本地日期，重新用 Date.UTC 組出同一個
+                // 西曆日期的假時間，calendar（timeZone:'UTC'）才會跳到正確的
+                // 那一天，而不是被裝置本地時區偏移到前一天/後一天
+                const picked = selectedDates[0];
+                calendar.gotoDate(new Date(Date.UTC(picked.getFullYear(), picked.getMonth(), picked.getDate())));
             }
         }
     });
@@ -935,7 +1019,9 @@ function initWeekSelector() {
 
 function populateWeekOptions(selector) {
     selector.innerHTML = '';
-    const today = new Date();
+    // 用台北的「今天」，不是裝置本地的「今天」——人在國外時，裝置本地的
+    // new Date() 在接近午夜時可能跟台北差一天，會讓「(本週)」標記錯週。
+    const today = getTaipeiToday();
     const currentMonday = getMonday(today);
 
     for (let i = -6; i <= 6; i++) {
@@ -960,7 +1046,10 @@ function updateWeekSelector(viewStart) {
     const selector = document.getElementById('weekSelector');
     if (!selector) return;
 
-    const viewMonday = getMonday(viewStart);
+    // viewStart 是 datesSet 給的假時間（UTC 欄位＝台北時間），先換成純本地
+    // 日期物件，getMonday/toLocalDateStr 這些既有函式才能照原本的本地
+    // getter 邏輯正確運作
+    const viewMonday = getMonday(fcDateToLocalPlainDate(viewStart));
     const dateStr = toLocalDateStr(viewMonday);
 
     for (const opt of selector.options) {
@@ -1015,12 +1104,12 @@ function openCourseModal(info) {
     currentSelectionInfo = info;
     const modal = document.getElementById('courseModal');
     
+    // info.start 是 FullCalendar 的假時間（UTC 欄位＝台北時間，來自 select
+    // 事件或下面 addCourseBtn 手動組出的日期），用 fcDateStr/fcTimeStr 讀，
+    // 不能用本地 getter，否則裝置在國外時會拿到錯的日期/時間
     const startDate = info.start;
-    const tzOffset = startDate.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(startDate - tzOffset)).toISOString().slice(0, -1);
-    
-    document.getElementById('courseDate').value = localISOTime.split('T')[0];
-    document.getElementById('startTime').value = padZero(startDate.getHours()) + ':' + padZero(startDate.getMinutes());
+    document.getElementById('courseDate').value = fcDateStr(startDate);
+    document.getElementById('startTime').value = fcTimeStr(startDate);
     const courseDateWeekdayEl = document.getElementById('courseDateWeekday');
     if (courseDateWeekdayEl) courseDateWeekdayEl.textContent = weekdayLabel(document.getElementById('courseDate').value);
     
@@ -1073,12 +1162,13 @@ function openEditCourseModal(event) {
     const editLocationSelect = document.getElementById('editLocation');
     if (editLocationSelect) editLocationSelect.value = event.extendedProps.location || 'court_out_1';
 
-    // 調課用的日期/時間欄位
+    // 調課用的日期/時間欄位。event.start/end 是 FullCalendar 的假時間
+    // （UTC 欄位＝台北時間），一樣要用 fcDateStr/fcTimeStr 讀。
     const start = event.start;
     const end = event.end;
     if (start) {
-        document.getElementById('editCourseDate').value = toLocalDateStr(start);
-        document.getElementById('editStartTime').value = padZero(start.getHours()) + ':' + padZero(start.getMinutes());
+        document.getElementById('editCourseDate').value = fcDateStr(start);
+        document.getElementById('editStartTime').value = fcTimeStr(start);
         updateEditCourseWeekday();
 
         const durationSelect = document.getElementById('editCourseDuration');
@@ -1194,8 +1284,10 @@ function initModalEvents() {
     const addCourseBtn = document.getElementById('addCourseBtn');
     if (addCourseBtn) {
         addCourseBtn.addEventListener('click', function() {
+            // calendar.getDate() 也是假時間（UTC 欄位＝台北時間），要用 getUTC*
+            // 讀日期，並用 Date.UTC 組出同樣規則的假時間給 openCourseModal
             const anchor = calendar.getDate();
-            const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate(), 10, 0, 0);
+            const start = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), anchor.getUTCDate(), 10, 0, 0));
             const end = new Date(start.getTime() + 60 * 60000);
             openCourseModal({ start, end, resource: null });
         });
@@ -1230,7 +1322,9 @@ function initModalEvents() {
             return;
         }
 
-        const startDateTime = new Date(`${dateStr}T${timeStr}:00`);
+        // dateStr/timeStr 是台北牆上時間，明確帶 +08:00 offset 組出絕對時間，
+        // 不透過會被裝置本地時區污染的 new Date(`${d}T${t}:00`) 寫法
+        const startDateTime = taipeiWallTimeToDate(dateStr, timeStr);
         const endDateTime = new Date(startDateTime.getTime() + durationMins * 60000);
         const locationId = document.getElementById('courseLocation').value || 'court_out_1';
 
@@ -1281,7 +1375,7 @@ function initModalEvents() {
             const editDateStr = document.getElementById('editCourseDate').value;
             const editTimeStr = document.getElementById('editStartTime').value;
             const editDuration = parseInt(document.getElementById('editCourseDuration').value, 10) || 60;
-            const editStart = new Date(`${editDateStr}T${editTimeStr}:00`);
+            const editStart = taipeiWallTimeToDate(editDateStr, editTimeStr);
             const editEnd = new Date(editStart.getTime() + editDuration * 60000);
             if (isNaN(editStart.getTime())) {
                 alert('請填寫正確的日期與開始時間。');

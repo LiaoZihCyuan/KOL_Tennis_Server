@@ -263,7 +263,7 @@ async function openStudentDetailModal(userId) {
                     <div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full" style="background-color: ${a.coach_color || '#3b82f6'};"></span>
                         <div>
-                            <div class="font-bold text-slate-700">${dt.toLocaleString('zh-TW')} - ${a.course_title}</div>
+                            <div class="font-bold text-slate-700">${dt.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })} - ${a.course_title}</div>
                             <div class="text-slate-500 text-[11px]">教練: ${a.coach_name}</div>
                         </div>
                     </div>
@@ -289,7 +289,7 @@ async function openStudentDetailModal(userId) {
                 item.innerHTML = `
                     <div>
                         <div class="font-bold text-slate-700">${t.description || '點數異動'}</div>
-                        <div class="text-slate-400 text-[10px]">${dt.toLocaleString('zh-TW')} (經手: ${t.admin_name})</div>
+                        <div class="text-slate-400 text-[10px]">${dt.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })} (經手: ${t.admin_name})</div>
                     </div>
                     <span class="font-mono font-bold ${isAdd ? 'text-emerald-600' : 'text-slate-600'}">
                         ${isAdd ? '+' : ''}${t.amount} 堂

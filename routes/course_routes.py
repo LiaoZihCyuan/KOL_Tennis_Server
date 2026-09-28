@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify, g
-from services.course_service import CourseService
+from services.course_service import CourseService, to_taipei
 from models.course import Course, CourseStatus
 from models.course_template import CourseTemplate
 from models.booking import Booking, BookingStatus
@@ -464,7 +464,9 @@ def delete_course_public(course_id):
 @course_bp.route("/api/coaches/stats", methods=["GET"])
 @roles_required("admin", "coach")
 def get_coaches_stats():
-    now = datetime.now()
+    # datetime.now() 讀的是容器系統時區(目前是 UTC)，月初/月底交界時會跟台北
+    # 差到一整個月——一律先轉台北時間再取年月，跟其他地方的規則一致。
+    now = to_taipei(datetime.now(timezone.utc))
     year = int(request.args.get("year", now.year))
     month = int(request.args.get("month", now.month))
 
