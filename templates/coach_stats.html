@@ -106,6 +106,75 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchCoachStats();
 });
 
+const COACH_COLORS = [
+    { name: '淺藍', hex: '#60A5FA' },
+    { name: '粉紅', hex: '#F472B6' },
+    { name: '黃色', hex: '#FACC15' },
+    { name: '綠色', hex: '#4ADE80' },
+    { name: '橘色', hex: '#FB923C' },
+    { name: '深藍', hex: '#2563EB' },
+    { name: '咖啡色', hex: '#92400E' },
+];
+
+function isAdminUser() {
+    try {
+        const user = JSON.parse(localStorage.getItem('kol_user') || 'null');
+        return !!user && user.role === 'admin';
+    } catch (e) {
+        return false;
+    }
+}
+
+function colorCellHtml(coachId, color) {
+    if (!isAdminUser()) {
+        return `<span class="px-2 py-0.5 rounded text-xs text-white font-mono" style="background-color: ${color};">${color}</span>`;
+    }
+    const swatches = COACH_COLORS.map(cc => `
+        <button type="button" title="${cc.name}" onclick="setCoachColor('${coachId}', '${cc.hex}')"
+            class="w-6 h-6 rounded-full border-2 ${cc.hex.toLowerCase() === color.toLowerCase() ? 'border-slate-700' : 'border-transparent'}"
+            style="background-color: ${cc.hex}"></button>`).join('');
+    return `
+        <div class="relative inline-block">
+            <button type="button" onclick="toggleColorMenu(event, '${coachId}')"
+                class="px-2 py-0.5 rounded text-xs text-white font-mono cursor-pointer hover:opacity-80"
+                style="background-color: ${color};">${color}</button>
+            <div id="colorMenu-${coachId}" class="hidden absolute z-20 mt-1 p-2 bg-white border border-slate-200 rounded-lg shadow-lg flex flex-wrap gap-2 w-40">
+                ${swatches}
+            </div>
+        </div>
+    `;
+}
+
+function toggleColorMenu(evt, coachId) {
+    evt.stopPropagation();
+    document.querySelectorAll('[id^="colorMenu-"]').forEach(el => {
+        if (el.id !== `colorMenu-${coachId}`) el.classList.add('hidden');
+    });
+    document.getElementById(`colorMenu-${coachId}`).classList.toggle('hidden');
+}
+
+document.addEventListener('click', () => {
+    document.querySelectorAll('[id^="colorMenu-"]').forEach(el => el.classList.add('hidden'));
+});
+
+async function setCoachColor(coachId, hex) {
+    try {
+        const res = await authFetch(`/api/users/${coachId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ color: hex })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert('更新失敗：' + (err.error || '無法更新代表色'));
+            return;
+        }
+        fetchCoachStats();
+    } catch (e) {
+        alert('發生系統錯誤，請稍後再試。');
+    }
+}
+
 async function fetchCoachStats() {
     const year = document.getElementById('yearSelect').value;
     const month = document.getElementById('monthSelect').value;
@@ -140,7 +209,7 @@ async function fetchCoachStats() {
                     ${c.coach_name}
                 </td>
                 <td class="px-6 py-4">
-                    <span class="px-2 py-0.5 rounded text-xs text-white font-mono" style="background-color: ${c.color};">${c.color}</span>
+                    ${colorCellHtml(c.coach_id, c.color)}
                 </td>
                 <td class="px-6 py-4 font-bold text-slate-700">${c.course_count} 堂</td>
                 <td class="px-6 py-4 font-mono font-bold text-blue-600">${c.total_hours} hr</td>

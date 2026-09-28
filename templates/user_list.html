@@ -113,6 +113,7 @@
 
             <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">教練代表色 (僅教練)</label>
+                <div id="editColorSwatches" class="flex flex-wrap gap-2 mb-2"></div>
                 <input type="text" id="editColor" placeholder="#60A5FA" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
             </div>
 
@@ -146,6 +147,26 @@
 {% block scripts %}
 <script>
 let usersData = [];
+
+const COACH_COLORS = [
+    { name: '淺藍', hex: '#60A5FA' },
+    { name: '粉紅', hex: '#F472B6' },
+    { name: '黃色', hex: '#FACC15' },
+    { name: '綠色', hex: '#4ADE80' },
+    { name: '橘色', hex: '#FB923C' },
+    { name: '深藍', hex: '#2563EB' },
+    { name: '咖啡色', hex: '#92400E' },
+];
+
+function renderColorSwatches(selectedHex) {
+    const container = document.getElementById('editColorSwatches');
+    container.innerHTML = COACH_COLORS.map(c => {
+        const isSelected = selectedHex && selectedHex.toLowerCase() === c.hex.toLowerCase();
+        return `<button type="button" title="${c.name}" onclick="document.getElementById('editColor').value='${c.hex}'; renderColorSwatches('${c.hex}');"
+            class="w-6 h-6 rounded-full border-2 ${isSelected ? 'border-slate-700' : 'border-transparent'}"
+            style="background-color: ${c.hex}"></button>`;
+    }).join('');
+}
 
 document.addEventListener('DOMContentLoaded', fetchUsers);
 
@@ -259,6 +280,7 @@ function openEditUserModal(userId) {
     document.getElementById('editCredits').value = user.credits ?? 0;
     document.getElementById('editLessonCount').value = user.lesson_count ?? 0;
     document.getElementById('editColor').value = user.color || '';
+    renderColorSwatches(user.color || '');
     document.getElementById('editNotes').value = user.notes || user.description || '';
     document.getElementById('editPassword').value = '';
 

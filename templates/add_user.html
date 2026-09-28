@@ -83,6 +83,13 @@
                 </select>
             </div>
 
+            <!-- 教練代表色 -->
+            <div id="colorField" class="hidden">
+                <label class="block text-sm font-bold text-slate-700 mb-1">教練代表色 (僅教練)</label>
+                <div id="colorSwatches" class="flex flex-wrap gap-2 mb-2"></div>
+                <input type="text" id="color" name="color" placeholder="#60A5FA" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            </div>
+
             <!-- 偏好場地 -->
             <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">偏好場地 (可複選)</label>
@@ -116,6 +123,34 @@
 
 {% block scripts %}
 <script>
+const COACH_COLORS = [
+    { name: '淺藍', hex: '#60A5FA' },
+    { name: '粉紅', hex: '#F472B6' },
+    { name: '黃色', hex: '#FACC15' },
+    { name: '綠色', hex: '#4ADE80' },
+    { name: '橘色', hex: '#FB923C' },
+    { name: '深藍', hex: '#2563EB' },
+    { name: '咖啡色', hex: '#92400E' },
+];
+
+function renderColorSwatches(selectedHex) {
+    const container = document.getElementById('colorSwatches');
+    container.innerHTML = COACH_COLORS.map(c => {
+        const isSelected = selectedHex && selectedHex.toLowerCase() === c.hex.toLowerCase();
+        return `<button type="button" title="${c.name}" onclick="document.getElementById('color').value='${c.hex}'; renderColorSwatches('${c.hex}');"
+            class="w-6 h-6 rounded-full border-2 ${isSelected ? 'border-slate-700' : 'border-transparent'}"
+            style="background-color: ${c.hex}"></button>`;
+    }).join('');
+}
+renderColorSwatches('');
+
+function toggleColorField() {
+    const isCoach = document.getElementById('role').value === 'coach';
+    document.getElementById('colorField').classList.toggle('hidden', !isCoach);
+}
+document.getElementById('role').addEventListener('change', toggleColorField);
+toggleColorField();
+
 document.getElementById('addUserForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -138,6 +173,7 @@ document.getElementById('addUserForm').addEventListener('submit', async function
     if (!data.line_id) delete data.line_id;
     if (!data.level) delete data.level;
     if (!data.description) delete data.description;
+    if (!data.color) delete data.color;
     
     const submitBtn = this.querySelector('button[type="submit"]');
     const originalText = submitBtn.innerHTML;
