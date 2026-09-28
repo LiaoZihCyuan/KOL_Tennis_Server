@@ -1,0 +1,35 @@
+services:
+  api:
+    build: .
+    container_name: flask_api_prod
+    command: gunicorn --bind 0.0.0.0:5000 --workers 2 manage:app
+    restart: unless-stopped
+    ports:
+      - "80:5000"
+    env_file:
+      - .env
+    environment:
+      PYTHONPATH: /app
+      DATABASE_URL: postgresql+psycopg://appuser:apppass@db:5432/appdb
+      FLASK_APP: manage.py
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:16
+    container_name: postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+      POSTGRES_DB: appdb
+      TZ: Asia/Taipei
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  pgdata:
