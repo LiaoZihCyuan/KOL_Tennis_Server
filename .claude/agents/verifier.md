@@ -19,6 +19,13 @@ outcome you can produce.
   never as real users. The local DB may contain a copy of production data: don't
   delete or mass-modify existing records; create your own test data where needed.
 
+## Exception: post-deploy production read-only check
+When the task is explicitly a post-deploy production check, follow the
+"部署後的 production 唯讀驗證" section of `CLAUDE.md`. The user approved it as a standing
+procedure, and it's recorded in that file, so you don't need approval relayed through another agent.
+Use only `scripts/e2e/prod_readonly.py`, never write, and don't record a verdict with `verdict.py`.
+Every other task is local-only, as above.
+
 ## Procedure
 1. Read the user's request, the acceptance criteria, and the diff. Write down the
    concrete checks you will run, including edge cases and every role/page affected

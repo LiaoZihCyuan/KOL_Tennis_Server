@@ -83,7 +83,19 @@
 Production 只跑網站本身，AI workflow（`CLAUDE.md`、`.claude/`、`scripts/e2e/`、`e2e_artifacts/`、
 文件、Playwright）都不屬於 production，不要安裝或執行在 EC2 上。
 - `.dockerignore` 把這些排除在 image 之外。新增任何 AI／開發用的檔案或目錄時，同步加進 `.dockerignore`。
-- 不在 EC2 上安裝 Playwright、Node、測試套件，也不在 production 上跑驗證；驗證只在本機做。
+- 不在 EC2 上安裝 Playwright、Node、測試套件；功能驗證（含寫入的測試）只在本機做。
+  唯一例外是下面的「部署後的 production 唯讀驗證」，它在本機跑瀏覽器、透過網址連線，不在 EC2 上裝任何東西。
+
+### 部署後的 production 唯讀驗證（使用者 2026-10-17 核准的常設流程）
+
+每次部署完成後，由 `verifier` agent 對 production 做一次**唯讀**瀏覽器檢查，確認這次上線的功能在線上正常。
+- 只能使用 `scripts/e2e/prod_readonly.py`：它擋掉所有非 GET 請求（只放行一次登入 POST）、自動取消所有確認視窗。
+  不得使用 `harness.py`／`ensure_users`／`smoke.py`／`verdict.py`，不得用 `page.request` 或 curl 送寫入請求，不得繞過防護。
+- 登入帳密由使用者放在 `~/.kol_prod_verify`（權限 600），內容 `PROD_VERIFY_USER=`／`PROD_VERIFY_PASS=`；不得印出、記錄或截圖。
+  檔案不存在就回報 BLOCKED，請使用者建立，不要用其他帳號。
+- 看板 `/calendar` 只看本週，不切換週次、不查其他日期範圍（讀取新的一週會在伺服器端產生課程）。
+- 回報用筆數與截圖路徑，不複製客戶個資；附上每個 session 的 `s.blocked` 清單。
+- 只能看、不能改；任何需要寫入才能驗證的項目，以本機驗證結果為準，並在報告中列為「未涵蓋」。
 
 ### ⚠️ Production 資料庫鐵則
 
