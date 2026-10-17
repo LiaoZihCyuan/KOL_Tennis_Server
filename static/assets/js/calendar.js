@@ -1221,6 +1221,7 @@ function openEditCourseModal(event) {
     
     document.getElementById('editCourseId').value = event.id;
     document.getElementById('editStudentName').value = event.title;
+    document.getElementById('editStudentLevel').value = event.extendedProps.level || '';
     
     if (event.extendedProps.coach_id) {
         document.getElementById('editCoachName').value = event.extendedProps.coach_id;
@@ -1452,6 +1453,7 @@ function initModalEvents() {
 
             const payload = {
                 title: document.getElementById('editStudentName').value,
+                description: document.getElementById('editStudentLevel').value.trim(),
                 coach_id: document.getElementById('editCoachName').value,
                 location: document.getElementById('editLocation').value,
                 start_time: editStart.toISOString(),

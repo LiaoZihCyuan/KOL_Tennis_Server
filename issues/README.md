@@ -21,6 +21,7 @@
 | 12 | [教練點自己的課只會跳出唯讀 alert，沒有電話等實用自助功能](./issue-12-coach-experience-is-read-only-stub.md) | 中 | 教練體驗 | 待處理 |
 | 13 | [教練開行事曆時去抓只有小編能用的學生清單，被 403 拒絕後 console 噴錯](./issue-13-coach-calendar-students-403.md) | 低 | 權限範圍 / 前端錯誤處理 | ✅ 已修正 2026-10-17 |
 | 14 | [編輯使用者時 LINE ID 空白會存成空字串，第二位之後儲存就 500 錯誤](./issue-14-blank-line-id-unique-violation.md) | 高 | 使用者管理 / 資料正確性 | 待處理 |
+| 15 | [排課看板的課程方塊直接把文字當 HTML 插入（XSS）](./issue-15-calendar-block-html-injection.md) | 中 | 安全性 | 待處理 |
 
 ## 核心結論
 
