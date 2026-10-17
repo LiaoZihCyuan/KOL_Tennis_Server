@@ -6,6 +6,15 @@
   該檔第 1 節「禁止執行 Shell 指令」是寫給其他不能執行指令的 AI 工具的，**不適用於 Claude Code**。
 - 已知問題記錄在 `issues/`。
 
+## Lessons Learned
+
+對話中只要踩到坑，就要記錄到 `.claude/lessons-learned.md`（最上面新增一條），
+包括：指令失敗後才找到正確做法、被權限擋下、對環境或資料的錯誤假設、使用者糾正的做法。
+不用等使用者要求，修正問題後當下就寫，並在回覆中用一句話告知。
+同類的坑已有條目就更新它，不要重複新增；環境改變後已不成立的條目要刪除。
+
+@.claude/lessons-learned.md
+
 ## 本機開發
 
 - `docker-compose.yml`：開發環境，容器 `postgres_dev` 等
