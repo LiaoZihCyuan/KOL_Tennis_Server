@@ -19,6 +19,7 @@
 | 10 | [側邊選單在手機上完全沒有收合，會吃掉大半個畫面](./issue-10-sidebar-not-mobile-responsive.md) | 高（教練情境） | 介面 / 響應式 | ✅ 已修正 2026-08-17 |
 | 11 | [「教練時數統計」讓每個教練都能看到所有教練的時數與體驗課收入](./issue-11-coach-stats-exposes-all-coaches.md) | 中 | 權限範圍 | ✅ 已修正 2026-08-17 |
 | 12 | [教練點自己的課只會跳出唯讀 alert，沒有電話等實用自助功能](./issue-12-coach-experience-is-read-only-stub.md) | 中 | 教練體驗 | 待處理 |
+| 13 | [教練開行事曆時去抓只有小編能用的學生清單，被 403 拒絕後 console 噴錯](./issue-13-coach-calendar-students-403.md) | 低 | 權限範圍 / 前端錯誤處理 | ✅ 已修正 2026-10-17 |
 
 ## 核心結論
 

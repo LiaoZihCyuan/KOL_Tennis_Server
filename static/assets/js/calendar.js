@@ -772,7 +772,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     initModalEvents();
     fetchCoaches();
-    fetchStudentsForForm();
+    // 學生清單只用於小編新增/編輯課程；教練沒有權限 (/api/users/students 為 admin only)
+    if (isAdmin) fetchStudentsForForm();
     initWeekSelector();
     initViewToggle();
     initTrialToggles();
@@ -826,6 +827,7 @@ function fetchStudentsForForm() {
             studentNameToId = {};
             const datalist = document.getElementById('studentDatalist');
             if (datalist) datalist.innerHTML = '';
+            if (!Array.isArray(data)) return;  // 403 等錯誤回應不是陣列
             data.forEach(student => {
                 studentNameToId[student.display_name] = student.id;
                 if (datalist) {
