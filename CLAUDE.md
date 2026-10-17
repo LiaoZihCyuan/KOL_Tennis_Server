@@ -38,6 +38,25 @@
 - 備份：`ls -lh ~/backups; tail ~/backup.log`
 - DB 唯讀查詢：`sudo docker exec postgres_prod psql -U appuser -d appdb -c "SELECT ..."`（只限 SELECT）
 
+### ⚠️ Production 資料庫鐵則
+
+Production DB 的資料與本機**不一致**，而且是客戶的真實資料，一旦遺失無法交代。
+
+1. **非必要不動 prod DB。** 能在本機重現、修正的事就在本機做。
+2. **要動就一定先備份**，並確認備份檔存在、非空：
+   `ssh ... "~/backup_db.sh && ls -lh ~/backups | tail -3"`
+3. **Migration 必須對既有資料安全**：新欄位用 nullable 或給 default、不刪有資料的欄位/表、
+   資料轉換要可逆。部署前先讀過新的 migration 檔，並比對 prod 的
+   `flask db current` 與本機 `flask db heads`，告訴使用者會跑哪些 migration。
+4. 不要假設 prod 的資料長得跟本機一樣（例如某些欄位可能是 NULL、有本機沒有的舊資料）。
+
+這些規則有機制保護：
+- `.claude/hooks/guard_prod_db.py`（PreToolUse hook）：針對 prod 的破壞性指令
+  （`down -v`、刪 volume、DROP、TRUNCATE、刪備份）**一律拒絕**；
+  其他寫入類指令（部署、migration、寫入 SQL、重啟、改檔）**強制詢問使用者**。
+- `scripts/deploy.sh` 第一步會備份到 `~/backups/predeploy_*.sql.gz`（不會被每日輪替刪掉），
+  備份失敗就中止部署。
+
 ### 必須先問使用者確認
 
 Production 上是教練輸入的真實資料，以下動作執行前**必須先說明要做什麼並取得同意**：
