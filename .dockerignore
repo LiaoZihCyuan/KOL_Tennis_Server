@@ -1,0 +1,30 @@
+# Keep the image to what the app needs at runtime.
+
+# AI / dev workflow — never ship to production
+.claude/
+CLAUDE.md
+AI_RULES.md
+.gemini/
+scripts/e2e/
+e2e_artifacts/
+
+# Docs and notes
+*.md
+SDD.txt
+task.txt
+document/
+issues/
+
+# Secrets and PII (provided at runtime via env_file, never baked in)
+.env
+*.pem
+*.csv
+
+# Tooling / VCS / build
+.git/
+.gitignore
+.vscode/
+Dockerfile
+docker-compose*.yml
+environment.yml
+**/__pycache__/

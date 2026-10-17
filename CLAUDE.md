@@ -6,6 +6,37 @@
   該檔第 1 節「禁止執行 Shell 指令」是寫給其他不能執行指令的 AI 工具的，**不適用於 Claude Code**。
 - 已知問題記錄在 `issues/`。
 
+## 修改前先確認（drill me）
+
+改任何**程式碼或設定**之前，必須先照 `/drill-me` skill（`.claude/skills/drill-me/SKILL.md`）
+跟使用者確認清楚：一次問一題、附建議答案、能查的自己查，最後總結計畫並取得「可以」才動手。
+- 不要憑空想像需求：使用者沒要求的功能、重構、「順便」的修改都不做，想到了就提出來問。
+- 實作中要偏離已確認的計畫時，停下來重新確認。
+- `CLAUDE.md`、`.claude/lessons-learned.md`、`e2e_artifacts/` 測試腳本可以直接更新，不必先問。
+
+## 交付前驗證（每次改動都必須做）
+
+沒有通過獨立驗證的改動，**不可以**說「完成」或交付給使用者。
+
+1. **功能測試**：自己先測（API 用 `curl` 打 `localhost:5000`、跑相關 Python），修到過為止。
+2. **獨立驗證**：用 Agent tool 開 `verifier` agent（`.claude/agents/verifier.md`）。
+   給它：使用者的原始需求、驗收條件、改了哪些地方。**不要**給「我覺得已經好了」之類的結論，
+   也不要替它決定測什麼。它會自己讀 diff、用 Playwright 在本機實際操作網站、看截圖、記錄結果。
+3. **結果**：
+   - PASS → 交付，回報時附上 verifier 跑了哪些檢查與截圖路徑。
+   - FAIL → 修正後開一個**新的** verifier 重驗，不可沿用舊結論。
+   - BLOCKED（環境問題，例如瀏覽器無法啟動）→ 照實告訴使用者沒驗證到，不可宣稱完成。
+4. **不准自己騙自己**：Claude（實作者）絕不執行 `verdict.py record`，那只屬於 verifier。
+   PASS 之前不要 commit app 程式碼。
+
+機制：
+- `scripts/e2e/harness.py`：Playwright 工具（登入、截圖、自動抓 console error / 5xx），只連 localhost。
+- `scripts/e2e/smoke.py`：所有頁面 × 所有角色 × 桌機/手機的基本檢查。
+- 測試帳號 `e2e_admin` / `e2e_coach` / `e2e_student`（密碼 `e2e-pass-123`），只存在本機 DB，
+  由 `harness.ensure_users()` 建立；guard hook 禁止對 prod 執行任何 e2e 工具。
+- `.claude/hooks/require_verification.py`（Stop hook）：有未驗證的 app 改動時，阻止結束回合一次並提醒。
+  改動指紋由 `scripts/e2e/verdict.py` 計算，PASS 之後只要再改任何 app 檔案就會失效。
+
 ## Lessons Learned
 
 對話中只要踩到坑，就要記錄到 `.claude/lessons-learned.md`（最上面新增一條），
@@ -46,6 +77,13 @@
 - 健康檢查：`curl -sS -o /dev/null -w '%{http_code}' http://localhost/`
 - 備份：`ls -lh ~/backups; tail ~/backup.log`
 - DB 唯讀查詢：`sudo docker exec postgres_prod psql -U appuser -d appdb -c "SELECT ..."`（只限 SELECT）
+
+### AI 工具不進 production
+
+Production 只跑網站本身，AI workflow（`CLAUDE.md`、`.claude/`、`scripts/e2e/`、`e2e_artifacts/`、
+文件、Playwright）都不屬於 production，不要安裝或執行在 EC2 上。
+- `.dockerignore` 把這些排除在 image 之外。新增任何 AI／開發用的檔案或目錄時，同步加進 `.dockerignore`。
+- 不在 EC2 上安裝 Playwright、Node、測試套件，也不在 production 上跑驗證；驗證只在本機做。
 
 ### ⚠️ Production 資料庫鐵則
 

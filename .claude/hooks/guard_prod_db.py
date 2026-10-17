@@ -26,6 +26,7 @@ DENY = [
     (r"\bdropdb\b", "drops the prod database"),
     (r"\btruncate\b", "truncates prod tables"),
     (r"\brm\b[^;&|]*(backups|pgdata|/var/lib/docker)", "deletes prod backups or DB files"),
+    (r"e2e", "runs E2E test tooling (creates test accounts) against prod"),
 ]
 
 ASK = [
