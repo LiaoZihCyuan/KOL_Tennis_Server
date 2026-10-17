@@ -26,6 +26,12 @@ def get_coaches():
         return jsonify({"error": "Internal server error"}), 500
 
 
+@user_bp.route("/coaches/suggest-color", methods=["GET"])
+@admin_required
+def suggest_coach_color():
+    return jsonify({"color": UserService.suggest_coach_color()}), 200
+
+
 @user_bp.route("/students", methods=["GET"])
 @admin_required
 def get_students():

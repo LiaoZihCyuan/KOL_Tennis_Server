@@ -86,6 +86,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/assets/js/coach_color.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const now = new Date();
@@ -106,16 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchCoachStats();
 });
 
-const COACH_COLORS = [
-    { name: '淺藍', hex: '#60A5FA' },
-    { name: '粉紅', hex: '#F472B6' },
-    { name: '黃色', hex: '#FACC15' },
-    { name: '綠色', hex: '#4ADE80' },
-    { name: '橘色', hex: '#FB923C' },
-    { name: '深藍', hex: '#2563EB' },
-    { name: '咖啡色', hex: '#92400E' },
-];
-
 function isAdminUser() {
     try {
         const user = JSON.parse(localStorage.getItem('kol_user') || 'null');
@@ -126,36 +117,34 @@ function isAdminUser() {
 }
 
 function colorCellHtml(coachId, color) {
-    if (!isAdminUser()) {
-        return `<span class="px-2 py-0.5 rounded text-xs text-white font-mono" style="background-color: ${color};">${color}</span>`;
-    }
-    const swatches = COACH_COLORS.map(cc => `
-        <button type="button" title="${cc.name}" onclick="setCoachColor('${coachId}', '${cc.hex}')"
-            class="w-6 h-6 rounded-full border-2 ${cc.hex.toLowerCase() === color.toLowerCase() ? 'border-slate-700' : 'border-transparent'}"
-            style="background-color: ${cc.hex}"></button>`).join('');
+    const swatch = `<span class="px-2 py-0.5 rounded text-xs text-white font-mono" style="background-color: ${color};">${color}</span>`;
+    if (!isAdminUser()) return swatch;
+    // 點色碼開調色盤，選完 (change) 就存
     return `
-        <div class="relative inline-block">
-            <button type="button" onclick="toggleColorMenu(event, '${coachId}')"
-                class="px-2 py-0.5 rounded text-xs text-white font-mono cursor-pointer hover:opacity-80"
-                style="background-color: ${color};">${color}</button>
-            <div id="colorMenu-${coachId}" class="hidden absolute z-20 mt-1 p-2 bg-white border border-slate-200 rounded-lg shadow-lg flex flex-wrap gap-2 w-40">
-                ${swatches}
-            </div>
-        </div>
+        <label class="relative inline-block cursor-pointer hover:opacity-80" title="點擊修改代表色">
+            ${swatch}
+            <input type="color" value="${isValidCoachColor(color) ? color : '#3B82F6'}"
+                onchange="onCoachColorPicked('${coachId}', this)"
+                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+        </label>
     `;
 }
 
-function toggleColorMenu(evt, coachId) {
-    evt.stopPropagation();
-    document.querySelectorAll('[id^="colorMenu-"]').forEach(el => {
-        if (el.id !== `colorMenu-${coachId}`) el.classList.add('hidden');
-    });
-    document.getElementById(`colorMenu-${coachId}`).classList.toggle('hidden');
+// 跟其他教練顏色太接近時提醒，但小編確認後仍可儲存
+async function onCoachColorPicked(coachId, input) {
+    const hex = input.value;
+    let coaches = [];
+    try { coaches = await fetchCoachColors(); } catch (e) {}
+    const close = coaches
+        .filter(c => c.id !== coachId && isValidCoachColor(c.color))
+        .filter(c => coachColorDistance(hex, c.color) < COACH_COLOR_SIMILAR_THRESHOLD)
+        .map(c => c.display_name);
+    if (close.length && !confirm(`這個顏色跟 ${close.join('、')} 很接近，行事曆上可能不好分辨。仍要使用嗎？`)) {
+        fetchCoachStats();
+        return;
+    }
+    setCoachColor(coachId, hex);
 }
-
-document.addEventListener('click', () => {
-    document.querySelectorAll('[id^="colorMenu-"]').forEach(el => el.classList.add('hidden'));
-});
 
 async function setCoachColor(coachId, hex) {
     try {

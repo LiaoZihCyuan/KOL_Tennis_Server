@@ -7,6 +7,7 @@ from models.user import User, UserRole, Gender
 from models.booking import Booking, BookingStatus
 from models.course import Course
 from services.course_service import to_taipei
+from utils.colors import suggest_distinct_color
 
 
 class UserService:
@@ -48,6 +49,11 @@ class UserService:
     @staticmethod
     def get_coaches() -> List[User]:
         return User.get_users_by_role(UserRole.COACH)
+
+    @staticmethod
+    def suggest_coach_color() -> str:
+        """A color as different as possible from every active coach's color."""
+        return suggest_distinct_color(c.color for c in UserService.get_coaches())
 
     @staticmethod
     def get_students() -> List[User]:
@@ -124,7 +130,8 @@ class UserService:
             role=role,
             credits=credits,
             lesson_count=lesson_count,
-            color=data.get("color"),
+            # 教練沒指定代表色就自動配一個跟現有教練差異最大的顏色
+            color=data.get("color") or (UserService.suggest_coach_color() if role == UserRole.COACH else None),
             notes=data.get("notes"),
             password_hash=password_hash,
             description=data.get("description"),

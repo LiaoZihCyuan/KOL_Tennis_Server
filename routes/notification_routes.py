@@ -38,6 +38,24 @@ def create_notification():
     return jsonify({"id": str(notification.id), "message": "已新增通知"}), 201
 
 
+@notification_bp.route("/api/notifications/<notification_id>", methods=["PUT"])
+@admin_required
+def update_notification(notification_id):
+    try:
+        n_id = uuid.UUID(notification_id)
+    except ValueError:
+        return jsonify({"error": "Invalid notification id"}), 400
+
+    data = request.get_json(silent=True)
+    message = (data or {}).get("message", "").strip()
+    if not message:
+        return jsonify({"error": "請輸入通知內容"}), 400
+
+    if not NotificationService.update_notification(n_id, message):
+        return jsonify({"error": "通知不存在"}), 404
+    return jsonify({"message": "已更新通知"}), 200
+
+
 @notification_bp.route("/api/notifications/<notification_id>", methods=["DELETE"])
 @admin_required
 def delete_notification(notification_id):

@@ -23,6 +23,15 @@ class NotificationService:
         return notification
 
     @staticmethod
+    def update_notification(notification_id: uuid.UUID, message: str) -> Optional[Notification]:
+        notification = Notification.get(notification_id)
+        if not notification or notification.deleted_at is not None:
+            return None
+        notification.message = message
+        Notification.commit()
+        return notification
+
+    @staticmethod
     def delete_notification(notification_id: uuid.UUID) -> bool:
         notification = Notification.get(notification_id)
         if not notification or notification.deleted_at is not None:

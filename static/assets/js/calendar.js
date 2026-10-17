@@ -230,7 +230,7 @@ function renderLeaveInfoPanel(courses) {
 }
 
 // 小編自行新增的公告（教練請假、貴賓來訪等），跟自動產生的請假名單不同來源，
-// 不綁日期/週次，小編何時想刪就刪，教練只能看不能新增/刪除
+// 不綁日期/週次，小編可隨時編輯或刪除，教練只能看
 function renderNotifications(notifications) {
     const container = document.getElementById('notificationList');
     const addRow = document.getElementById('addNotificationRow');
@@ -248,11 +248,30 @@ function renderNotifications(notifications) {
     }
 
     container.innerHTML = notifications.map(n => `
-        <div class="flex items-start justify-between gap-2 p-2 rounded-lg border border-blue-100 bg-blue-50/60">
-            <span class="text-xs text-slate-700 flex-1 break-words">${escapeHtml(n.message)}</span>
-            ${canManage ? `<button type="button" class="delete-notification-btn text-slate-400 hover:text-rose-600 shrink-0 text-xs leading-4" data-id="${n.id}">✕</button>` : ''}
+        <div class="notification-item p-2 rounded-lg border border-blue-100 bg-blue-50/60" data-id="${n.id}">
+            <div class="notification-view flex items-start justify-between gap-2">
+                <span class="notification-text text-xs text-slate-700 flex-1 break-words whitespace-pre-wrap">${escapeHtml(n.message)}</span>
+                ${canManage ? `
+                <div class="flex gap-1 shrink-0">
+                    <button type="button" class="edit-notification-btn px-2 py-1 text-xs font-bold text-blue-600 hover:bg-blue-100 rounded-md">編輯</button>
+                    <button type="button" class="delete-notification-btn px-2 py-1 text-xs font-bold text-rose-600 hover:bg-rose-100 rounded-md">刪除</button>
+                </div>` : ''}
+            </div>
+            ${canManage ? `
+            <div class="notification-edit hidden">
+                <textarea rows="2" class="notification-edit-input w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"></textarea>
+                <div class="flex justify-end gap-1 mt-1">
+                    <button type="button" class="cancel-notification-btn px-2.5 py-1 text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-md">取消</button>
+                    <button type="button" class="save-notification-btn px-2.5 py-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-md">儲存</button>
+                </div>
+            </div>` : ''}
         </div>
     `).join('');
+    // 原文另外存起來給編輯框用（避免從 HTML 反解跳脫字元）
+    notifications.forEach(n => {
+        const item = container.querySelector(`.notification-item[data-id="${n.id}"]`);
+        if (item) item._message = n.message;
+    });
 }
 
 function fetchNotifications() {
@@ -276,6 +295,16 @@ function initLeaveInfoPanel() {
     btn.addEventListener('click', function(e) {
         e.stopPropagation();
         panel.classList.toggle('hidden');
+        // 手機上面板改成 fixed、左右貼齊畫面（見 calendar.html），從按鈕下方開始，
+        // 不然從按鈕往右展開會超出螢幕，右側的編輯/刪除按鈕會被切掉
+        if (window.innerWidth < 640) {
+            const bottom = btn.getBoundingClientRect().bottom + 8;
+            panel.style.top = bottom + 'px';
+            panel.style.maxHeight = (window.innerHeight - bottom - 16) + 'px';
+        } else {
+            panel.style.top = '';
+            panel.style.maxHeight = '';
+        }
     });
 
     document.addEventListener('click', function(e) {
@@ -318,10 +347,47 @@ function initNotifications() {
 
     if (list) {
         list.addEventListener('click', function(e) {
-            const btn = e.target.closest('.delete-notification-btn');
-            if (!btn) return;
+            const item = e.target.closest('.notification-item');
+            if (!item) return;
+            const id = item.getAttribute('data-id');
+            const view = item.querySelector('.notification-view');
+            const edit = item.querySelector('.notification-edit');
+            const editInput = item.querySelector('.notification-edit-input');
+
+            if (e.target.closest('.edit-notification-btn')) {
+                editInput.value = item._message || '';
+                view.classList.add('hidden');
+                edit.classList.remove('hidden');
+                editInput.focus();
+                return;
+            }
+            if (e.target.closest('.cancel-notification-btn')) {
+                edit.classList.add('hidden');
+                view.classList.remove('hidden');
+                return;
+            }
+            if (e.target.closest('.save-notification-btn')) {
+                const message = editInput.value.trim();
+                if (!message) { alert('通知內容不能是空的'); return; }
+                const saveBtn = e.target.closest('.save-notification-btn');
+                saveBtn.disabled = true;
+                authFetch(`/api/notifications/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                })
+                    .then(async res => {
+                        const body = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(body.error || '更新通知失敗');
+                        fetchNotifications();
+                    })
+                    .catch(err => { saveBtn.disabled = false; alert('更新通知發生錯誤：' + err.message); });
+                return;
+            }
+
+            if (!e.target.closest('.delete-notification-btn')) return;
             if (!confirm('確定刪除這則通知？')) return;
-            authFetch(`/api/notifications/${btn.getAttribute('data-id')}`, { method: 'DELETE' })
+            authFetch(`/api/notifications/${id}`, { method: 'DELETE' })
                 .then(async res => {
                     const body = await res.json().catch(() => ({}));
                     if (!res.ok) throw new Error(body.error || '刪除通知失敗');

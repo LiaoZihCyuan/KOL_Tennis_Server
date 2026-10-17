@@ -7,6 +7,10 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### `docker exec` 搭配 heredoc 要加 `-i`（2026-10-17）
+- **狀況**：`docker exec postgres_dev psql ... <<EOF` 沒有 `-i` 時，stdin 不會傳進容器，SQL 完全沒執行，也不報錯。
+- **下次怎麼做**：要從 stdin 餵資料給容器一律用 `docker exec -i`；執行後查一次結果確認真的有生效。
+
 ### 沒有 .dockerignore，`COPY . .` 把所有東西打包進 image（2026-10-17）
 - **狀況**：image 內含 `.git`、`.env`、文件、AI 工具檔；本機 build 甚至會包進 `*.pem` 與學生個資 CSV。
 - **下次怎麼做**：已加 `.dockerignore`。改動後用 `docker build` + `docker run ... ls -A /app` 確認內容；

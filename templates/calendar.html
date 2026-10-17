@@ -60,13 +60,13 @@
         </button>
 
         <!-- 通知：僅小編/教練看得到。點開顯示小編自行新增的公告（教練請假、貴賓來訪等，
-             小編可刪除），以及目前檢視範圍（本日/本週）內的自動請假名單 -->
+             小編可編輯/刪除），以及目前檢視範圍（本日/本週）內的自動請假名單 -->
         <div id="leaveInfoWrap" class="relative hidden">
             <button id="leaveInfoBtn" type="button" class="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-xs text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
                 <span>通知</span>
                 <span id="leaveInfoCount" class="hidden min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-4 text-center"></span>
             </button>
-            <div id="leaveInfoPanel" class="hidden absolute left-0 top-full mt-2 w-[min(340px,90vw)] max-h-[460px] overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-2">
+            <div id="leaveInfoPanel" class="hidden absolute left-0 top-full mt-2 w-[min(340px,90vw)] max-sm:fixed max-sm:left-4 max-sm:right-4 max-sm:mt-0 max-sm:w-auto max-h-[460px] overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-2">
                 <div class="pb-2 mb-2 border-b border-slate-100">
                     <div class="text-[11px] font-bold text-slate-400 px-1 pb-1.5 uppercase tracking-wide">公告</div>
                     <div id="notificationList" class="space-y-1.5 mb-2"></div>
