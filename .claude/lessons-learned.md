@@ -7,6 +7,15 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### 用「起點～終點」整段替換時，誤刪了中間的規則（2026-10-17）
+- **狀況**：修固定課表圖表的手機樣式時，用 `t.index(起點)`～`t.index(終點)` 整段換掉，結果把夾在中間的 5 條桌機 CSS（含隱藏 FullCalendar 授權橫幅）一起刪了，橫幅蓋住 21:00 的課，第三次驗證 FAIL。
+- **下次怎麼做**：盡量用精確的 `old→new` 單點替換；必須整段替換時，先印出要被換掉的那段內容確認，換完用 `git diff` 檢查有沒有非預期的刪除行。
+
+### 只改 HTML 模板時，開發站不會重新載入（2026-10-17）
+- **狀況**：改了 `templates/templates_manage.html`，瀏覽器測試卻一直拿到舊頁面（新變數 `ReferenceError`）。
+- **原因**：`flask_api_dev` 的 `gunicorn --reload` 只監看 `.py`，Jinja 模板有快取；之前剛好有同時改 `.py` 才沒踩到。
+- **下次怎麼做**：只改 `templates/*.html` 後要 `docker restart flask_api_dev`（本機開發容器），並用 `curl localhost:5000/<頁面> | grep <新內容>` 確認已生效，再測試或交給 verifier。
+
 ### `docker exec` 搭配 heredoc 要加 `-i`（2026-10-17）
 - **狀況**：`docker exec postgres_dev psql ... <<EOF` 沒有 `-i` 時，stdin 不會傳進容器，SQL 完全沒執行，也不報錯。
 - **下次怎麼做**：要從 stdin 餵資料給容器一律用 `docker exec -i`；執行後查一次結果確認真的有生效。

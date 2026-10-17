@@ -2,6 +2,40 @@
 
 {% block title %}KOL 網球管理系統 - 每週固定課表模板{% endblock %}
 
+{% block extra_head %}
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js'></script>
+    <style>
+        /* 跟排課總覽看板 (calendar.css) 一致的課表外觀，只套在這頁的圖表上 */
+        #templatesCalendar .fc-timegrid-slot { height: 2rem !important; }
+        #templatesCalendar .fc-col-header-cell-cushion { padding: 10px 0 !important; font-size: 1rem !important; color: #1e293b !important; }
+        #templatesCalendar .fc-resource-header-content { font-weight: 600 !important; color: #64748b !important; padding: 6px 0 !important; }
+        #templatesCalendar .fc-v-event .fc-event-main { padding: 2px 4px !important; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; white-space: normal !important; word-break: break-word !important; }
+        #templatesCalendar .fc-v-event, #templatesCalendar .fc-event, #templatesCalendar .fc-event-main-frame, #templatesCalendar .fc-event-title-container { white-space: normal !important; word-break: break-word !important; }
+        #templatesCalendar .fc-timegrid-event { border-radius: 6px !important; box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important; border: none !important; }
+        #templatesCalendar .fc-license-message { display: none !important; }
+        /* 手機：沿用看板 calendar.css 的 @media (max-width: 768px) 規則（時間軸壓窄、
+           標題縮小、方塊內距縮小），場地欄才會跟看板一樣寬。看板靠 expandRows 撐開列高
+           （約 38px/小時），這頁是 height:auto，所以直接指定每小時的格高 */
+        @media (max-width: 768px) {
+            #templatesCalendar .fc-timegrid-slot { height: 2.75rem !important; }
+            #templatesCalendar .fc-col-header-cell-cushion { font-size: 0.9rem !important; }
+            #templatesCalendar .fc-timegrid-axis,
+            #templatesCalendar .fc-timegrid-slot-label { font-size: 0.65rem !important; }
+            #templatesCalendar .fc-timegrid-axis-frame,
+            #templatesCalendar .fc-timegrid-slot-label-frame,
+            #templatesCalendar .fc-timegrid-slot-label-cushion { padding: 0 2px !important; line-height: 1 !important; }
+            #templatesCalendar .fc-resource-header-content { font-size: 0.7rem !important; padding: 4px 0 !important; white-space: normal !important; line-height: 1.2 !important; }
+            #templatesCalendar .fc-timegrid-event .fc-event-main > div { padding: 1px 2px !important; }
+            /* 這頁外框比看板多一層留白，場地欄約窄 6px；外層內距也縮小，名字才不會多換一行把教練擠出去 */
+            #templatesCalendar .fc-v-event .fc-event-main { padding: 1px 2px !important; }
+            #templatesCalendar .fc-list-event td { padding: 0.6rem 0.5rem !important; }
+            #templatesCalendar .fc-list-day-cushion { padding: 0.6rem 0.75rem !important; font-size: 0.9rem !important; }
+            #templatesCalendar .fc-list-event-time { font-size: 0.75rem !important; white-space: nowrap; }
+        }
+        .coach-name-text { font-family: 'Noto Serif TC', 'Microsoft JhengHei', serif; }
+    </style>
+{% endblock %}
+
 {% block header_title %}每週既定課表模板設定{% endblock %}
 {% block breadcrumb %}課表模板{% endblock %}
 
@@ -17,7 +51,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto space-y-6">
+<div id="templatesPage" class="max-w-6xl mx-auto space-y-6">
     <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-start gap-3">
         <span class="text-xl">💡</span>
         <div class="text-xs text-blue-900 leading-relaxed">
@@ -26,8 +60,48 @@
         </div>
     </div>
 
+    <!-- 圖表 / 表格 切換（放在內容區而不是頁首：手機上頁首已經被兩顆按鈕塞滿）
+         圖表跟排課總覽看板同格式，方便一眼看出每週有哪些固定課 -->
+    <div class="flex">
+        <div class="flex bg-slate-200/80 p-0.5 rounded-lg text-xs">
+            <button id="viewChartBtn" type="button" onclick="setTemplatesMode('chart')" class="px-4 py-1.5 rounded-md">圖表</button>
+            <button id="viewTableBtn" type="button" onclick="setTemplatesMode('table')" class="px-4 py-1.5 rounded-md">表格</button>
+        </div>
+    </div>
+
+    <!-- 圖表：週一～週日 × 場地，跟排課總覽看板同格式（不帶日期，因為是每週重複） -->
+    <div id="templatesChartCard" class="bg-white rounded-2xl shadow-xs border border-slate-200">
+        <div class="px-4 sm:px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center gap-2 rounded-t-2xl">
+            <h3 class="font-bold text-slate-800 text-base mr-auto">每週固定課表</h3>
+            <div id="tmplCoachFilterWrap" class="relative">
+                <button id="tmplCoachFilterBtn" type="button" class="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-xs text-xs font-bold text-slate-600 hover:bg-slate-50">
+                    <span id="tmplCoachFilterLabel">全部教練</span>
+                    <span class="text-[9px] text-slate-400">▼</span>
+                </button>
+                <div id="tmplCoachFilterPanel" class="hidden absolute right-0 top-full mt-2 w-[min(220px,90vw)] max-h-[420px] overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-2">
+                    <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+                        <input type="checkbox" id="tmplCoachFilterAll" class="rounded w-3.5 h-3.5" checked>
+                        <span class="text-xs font-bold text-slate-700">全部教練</span>
+                    </label>
+                    <div class="my-1 border-t border-slate-100"></div>
+                    <div id="tmplCoachFilterOptions" class="space-y-0.5"></div>
+                </div>
+            </div>
+            <div class="flex bg-slate-200/80 p-0.5 rounded-lg text-xs">
+                <button id="tmplViewDayBtn" type="button" class="px-3 py-1 rounded-md">日</button>
+                <button id="tmplViewWeekBtn" type="button" class="px-3 py-1 rounded-md">週</button>
+            </div>
+            <!-- 日檢視時選星期幾（固定課表沒有日期，用星期切換） -->
+            <div id="tmplDayPicker" class="hidden w-full flex bg-slate-100 p-0.5 rounded-lg text-xs"></div>
+        </div>
+        <!-- 手機不留內距，讓三個場地欄跟看板一樣寬 -->
+        <div class="p-0 sm:p-4 overflow-x-auto">
+            <div id="templatesCalendar"></div>
+        </div>
+    </div>
+
     <!-- 模板列表 (按星期分組或整表) -->
-    <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+    <div id="templatesTableCard" class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
             <h3 class="font-bold text-slate-800 text-base">目前常態課表清單</h3>
             <span id="templateCountBadge" class="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">共 0 筆</span>
@@ -133,6 +207,21 @@
     </div>
 </div>
 
+<!-- Modal: 固定課詳細（圖表上點色塊） -->
+<div id="templateDetailModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800 text-base">固定課詳細</h3>
+            <button onclick="closeTemplateDetail()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <div id="templateDetailBody" class="p-6 space-y-2 text-sm text-slate-700"></div>
+        <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
+            <button type="button" onclick="closeTemplateDetail()" class="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg">關閉</button>
+            <button type="button" id="templateDetailDeleteBtn" class="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg">刪除</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: 套用模板至指定週 -->
 <div id="applyModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
     <div class="bg-white rounded-2xl shadow-2xl w-[400px] p-6 space-y-4">
@@ -162,8 +251,252 @@ const locNames = {
 };
 
 let allStudents = [];
+let templatesData = [];
+let templatesCalendar = null;
+let templatesMode = 'chart';
+let tmplHiddenCoaches = new Set();   // 篩選掉的教練 id（'none' = 未指定教練）
+
+// 固定課表沒有日期：把週一～週日對應到一個固定的參考週（2024-01-01 是星期一），
+// 只拿來排位置，畫面上不顯示日期。FullCalendar 用 timeZone:'UTC'，時間字串直接
+// 就是台北牆上時間，不受裝置時區影響（同看板的做法）。
+const REF_MONDAY = '2024-01-01';
+const weekdayShort = ['一', '二', '三', '四', '五', '六', '日'];
+function refDate(dayOfWeek) {
+    return `2024-01-0${1 + dayOfWeek}`;
+}
+
+// 跟看板相同的斷點：手機上「週」用清單（7 天 × 3 場地放不下）、「日」用場地格狀
+function isMobileViewport() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
+let tmplWantWeek = !isMobileViewport();
+let tmplDayIndex = 0;
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+}
+
+function coachSurname(name) {
+    if (!name) return name;
+    const idx = name.indexOf('教練');
+    return idx > 0 ? name.slice(0, idx) : name;
+}
+
+function templateTitle(t) {
+    const names = (t.students || []).map(s => s.display_name).join('、');
+    return t.title || names || '未命名';
+}
+
+function setTemplatesMode(mode) {
+    templatesMode = mode;
+    const on = 'px-4 py-1.5 rounded-md bg-white shadow-sm text-blue-600 font-bold';
+    const off = 'px-4 py-1.5 rounded-md text-slate-600 font-medium hover:text-slate-900';
+    document.getElementById('viewChartBtn').className = mode === 'chart' ? on : off;
+    document.getElementById('viewTableBtn').className = mode === 'table' ? on : off;
+    document.getElementById('templatesChartCard').classList.toggle('hidden', mode !== 'chart');
+    document.getElementById('templatesTableCard').classList.toggle('hidden', mode !== 'table');
+    // 圖表需要寬一點才放得下 7 天 × 3 場地
+    document.getElementById('templatesPage').classList.toggle('max-w-6xl', mode === 'table');
+    if (mode === 'chart') renderTemplatesChart();
+}
+
+function tmplViewName() {
+    if (tmplWantWeek) return isMobileViewport() ? 'listWeek' : 'resourceTimeGridWeek';
+    return 'resourceTimeGridDay';
+}
+
+function updateTmplViewButtons() {
+    const on = 'px-3 py-1 rounded-md bg-white shadow-sm text-blue-600 font-bold';
+    const off = 'px-3 py-1 rounded-md text-slate-600 font-medium hover:text-slate-900';
+    document.getElementById('tmplViewDayBtn').className = tmplWantWeek ? off : on;
+    document.getElementById('tmplViewWeekBtn').className = tmplWantWeek ? on : off;
+    const picker = document.getElementById('tmplDayPicker');
+    picker.classList.toggle('hidden', tmplWantWeek);
+    picker.innerHTML = weekdayShort.map((d, i) => `
+        <button type="button" data-day="${i}" class="flex-1 px-2 py-1 rounded-md ${i === tmplDayIndex ? 'bg-white shadow-sm text-blue-600 font-bold' : 'text-slate-600 font-medium'}">${d}</button>
+    `).join('');
+}
+
+function applyTmplView() {
+    if (!templatesCalendar) return;
+    const view = tmplViewName();
+    if (templatesCalendar.view.type !== view) templatesCalendar.changeView(view);
+    templatesCalendar.gotoDate(tmplWantWeek ? REF_MONDAY : refDate(tmplDayIndex));
+    templatesCalendar.setOption('slotDuration', isMobileViewport() ? '01:00:00' : '00:30:00');
+    templatesCalendar.setOption('dayMinWidth', isMobileViewport() ? undefined : 90);
+    updateTmplViewButtons();
+}
+
+function templateEvents() {
+    return templatesData
+        .filter(t => !tmplHiddenCoaches.has(t.coach_id || 'none'))
+        .map(t => {
+            const color = t.coach_id ? (t.coach_color || '#3b82f6') : '#64748b';
+            return {
+                id: t.id,
+                resourceId: t.location,
+                title: templateTitle(t),
+                start: `${refDate(t.day_of_week)}T${t.start_time}:00`,
+                end: `${refDate(t.day_of_week)}T${t.end_time}:00`,
+                backgroundColor: color,
+                borderColor: color,
+                extendedProps: { tmpl: t, color }
+            };
+        });
+}
+
+function renderTemplatesChart() {
+    if (templatesMode !== 'chart') return;
+    if (!templatesCalendar) {
+        templatesCalendar = new FullCalendar.Calendar(document.getElementById('templatesCalendar'), {
+            locale: 'zh-tw',
+            timeZone: 'UTC',
+            initialView: tmplViewName(),
+            initialDate: tmplWantWeek ? REF_MONDAY : refDate(tmplDayIndex),
+            validRange: { start: REF_MONDAY, end: '2024-01-08' },
+            firstDay: 1,
+            datesAboveResources: true,
+            resources: [
+                { id: 'court_out_1', title: '室外場 1' },
+                { id: 'court_out_2', title: '室外場 2' },
+                { id: 'court_in', title: '室內場' }
+            ],
+            slotMinTime: '07:00:00',
+            slotMaxTime: '22:00:00',
+            slotDuration: isMobileViewport() ? '01:00:00' : '00:30:00',
+            allDaySlot: false,
+            headerToolbar: false,
+            height: 'auto',
+            // 桌機週檢視 7 天 × 3 場地需要最小欄寬（不夠寬時橫向捲動）；手機只會用單日
+            // 場地格狀，3 欄要剛好塞進螢幕，不設最小寬度
+            dayMinWidth: isMobileViewport() ? undefined : 90,
+            // 只顯示星期幾，不顯示參考週的日期
+            dayHeaderFormat: { weekday: 'short' },
+            listDayFormat: { weekday: 'long' },
+            listDaySideFormat: false,
+            noEventsText: '沒有固定課',
+            windowResize: () => applyTmplView(),
+            events: (info, success) => success(templateEvents()),
+            eventClick: info => openTemplateDetail(info.event.extendedProps.tmpl),
+            eventContent: function(arg) {
+                const t = arg.event.extendedProps.tmpl;
+                const color = arg.event.extendedProps.color;
+                const coach = t.coach_id ? coachSurname(t.coach_name) : '待排';
+                const level = t.description ? escapeHtml(t.description) : '';
+                const trialBadge = t.is_trial ? `<span class="text-[10px] bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded">體驗${t.trial_fee ? '$' + t.trial_fee : ''}</span>` : '';
+                if (arg.view.type.startsWith('list')) {
+                    return { html: `
+                        <div class="w-full py-1 flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer">
+                            <span class="text-xs font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">${locNames[t.location] || t.location}</span>
+                            <span class="font-bold text-sm text-slate-800">${escapeHtml(arg.event.title)}</span>
+                            ${level ? `<span class="text-xs text-slate-400">（${level}）</span>` : ''}
+                            <span class="coach-name-text text-xs font-medium px-1.5 py-0.5 rounded" style="background-color:${color}15; color:${color};">${escapeHtml(coach)}</span>
+                            ${trialBadge}
+                        </div>` };
+                }
+                return { html: `
+                    <div class="w-full h-full cursor-pointer p-1 text-white flex flex-col justify-start text-left overflow-hidden">
+                        <div class="font-bold text-[12px] leading-tight break-words">${escapeHtml(arg.event.title)}</div>
+                        ${level ? `<div class="text-[11px] font-normal opacity-90 leading-tight break-words">${level}</div>` : ''}
+                        <div class="coach-name-text text-[11px] font-medium opacity-95 leading-tight">${escapeHtml(coach)}</div>
+                        ${trialBadge}
+                    </div>` };
+            }
+        });
+        templatesCalendar.render();
+        updateTmplViewButtons();
+    } else {
+        templatesCalendar.refetchEvents();
+        templatesCalendar.updateSize();
+    }
+}
+
+// 教練篩選（同看板：可同時勾選多位教練）
+function renderTmplCoachFilter() {
+    const coaches = new Map();
+    templatesData.forEach(t => coaches.set(t.coach_id || 'none', {
+        name: t.coach_id ? t.coach_name : '未指定教練',
+        color: t.coach_id ? (t.coach_color || '#3b82f6') : '#64748b'
+    }));
+    document.getElementById('tmplCoachFilterOptions').innerHTML = Array.from(coaches.entries()).map(([id, c]) => `
+        <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" class="tmpl-coach-cb rounded w-3.5 h-3.5" value="${id}" ${tmplHiddenCoaches.has(id) ? '' : 'checked'}>
+            <span class="w-2.5 h-2.5 rounded-full" style="background-color:${c.color}"></span>
+            <span class="text-xs text-slate-700">${escapeHtml(c.name)}</span>
+        </label>
+    `).join('');
+    updateTmplCoachFilterLabel();
+}
+
+function updateTmplCoachFilterLabel() {
+    const boxes = Array.from(document.querySelectorAll('.tmpl-coach-cb'));
+    const checked = boxes.filter(b => b.checked);
+    document.getElementById('tmplCoachFilterAll').checked = checked.length === boxes.length;
+    document.getElementById('tmplCoachFilterLabel').textContent =
+        checked.length === boxes.length ? '全部教練' : `${checked.length} 位教練`;
+}
+
+function initTmplChartControls() {
+    const wrap = document.getElementById('tmplCoachFilterWrap');
+    const panel = document.getElementById('tmplCoachFilterPanel');
+    document.getElementById('tmplCoachFilterBtn').addEventListener('click', e => {
+        e.stopPropagation();
+        panel.classList.toggle('hidden');
+    });
+    document.addEventListener('click', e => { if (!wrap.contains(e.target)) panel.classList.add('hidden'); });
+    document.getElementById('tmplCoachFilterOptions').addEventListener('change', e => {
+        if (!e.target.classList.contains('tmpl-coach-cb')) return;
+        if (e.target.checked) tmplHiddenCoaches.delete(e.target.value); else tmplHiddenCoaches.add(e.target.value);
+        updateTmplCoachFilterLabel();
+        if (templatesCalendar) templatesCalendar.refetchEvents();
+    });
+    document.getElementById('tmplCoachFilterAll').addEventListener('change', e => {
+        tmplHiddenCoaches = new Set();
+        if (!e.target.checked) document.querySelectorAll('.tmpl-coach-cb').forEach(b => tmplHiddenCoaches.add(b.value));
+        renderTmplCoachFilter();
+        if (templatesCalendar) templatesCalendar.refetchEvents();
+    });
+    document.getElementById('tmplViewDayBtn').addEventListener('click', () => { tmplWantWeek = false; applyTmplView(); });
+    document.getElementById('tmplViewWeekBtn').addEventListener('click', () => { tmplWantWeek = true; applyTmplView(); });
+    document.getElementById('tmplDayPicker').addEventListener('click', e => {
+        const b = e.target.closest('[data-day]');
+        if (!b) return;
+        tmplDayIndex = parseInt(b.getAttribute('data-day'), 10);
+        applyTmplView();
+    });
+}
+
+function openTemplateDetail(t) {
+    const names = (t.students || []).map(s => escapeHtml(s.display_name)).join('、') || '<span class="text-amber-600">未連動學生資料</span>';
+    const row = (label, value) => `<div class="flex gap-3"><span class="w-20 shrink-0 text-slate-400">${label}</span><span class="font-medium">${value}</span></div>`;
+    document.getElementById('templateDetailBody').innerHTML = [
+        row('星期時段', `${dayNames[t.day_of_week] || t.day_of_week}　${t.start_time} ~ ${t.end_time}`),
+        row('場地', locNames[t.location] || t.location),
+        row('教練', `<span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background-color:${t.coach_id ? (t.coach_color || '#3b82f6') : '#64748b'}"></span>${escapeHtml(t.coach_id ? t.coach_name : '未指定')}</span>`),
+        row('課程名稱', escapeHtml(t.title || '-')),
+        row('學生', names),
+        row('程度/備註', escapeHtml(t.description || '-')),
+        row('類別', t.is_trial ? '<span class="text-amber-600 font-bold">體驗課</span>' : '一般課'),
+    ].join('');
+    document.getElementById('templateDetailDeleteBtn').onclick = async () => {
+        if (await deleteTemplate(t.id)) closeTemplateDetail();
+    };
+    const modal = document.getElementById('templateDetailModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeTemplateDetail() {
+    const modal = document.getElementById('templateDetailModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
 
 document.addEventListener('DOMContentLoaded', () => {
+    initTmplChartControls();
+    setTemplatesMode('chart');
     fetchTemplates();
     fetchCoachesForTemplate();
     fetchStudentsForTemplate();
@@ -182,6 +515,9 @@ async function fetchTemplates() {
         const res = await authFetch('/api/templates');
         const data = await res.json();
         tbody.innerHTML = '';
+        templatesData = Array.isArray(data) ? data : [];
+        renderTmplCoachFilter();
+        renderTemplatesChart();
 
         document.getElementById('templateCountBadge').textContent = `共 ${data.length} 筆`;
 
@@ -328,11 +664,14 @@ document.getElementById('templateForm').addEventListener('submit', async functio
 });
 
 async function deleteTemplate(id) {
-    if (!confirm('確定刪除此固定課表模板？')) return;
+    if (!confirm('確定刪除此固定課表模板？')) return false;
     try {
         await authFetch(`/api/templates/${id}`, { method: 'DELETE' });
         fetchTemplates();
-    } catch(e) {}
+        return true;
+    } catch(e) {
+        return false;
+    }
 }
 
 function openApplyModal() {
