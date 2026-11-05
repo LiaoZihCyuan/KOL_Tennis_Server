@@ -308,6 +308,14 @@ class CourseService:
         if not course or course.deleted_at is not None:
             return None
 
+        # 錯掛在別人模板下、或模板已刪除的課，前端不會給「刪除整個固定課程」，
+        # 但直接打 API 仍可能送 series —— 那會把別的學生的固定課整個刪掉。
+        # 寧可拒絕、什麼都不刪，也不要默默改成只刪一堂讓人以為整個系列已刪。
+        if scope == "series":
+            tmpl = CourseTemplate.get(course.template_id) if course.template_id else None
+            if not CourseService.is_own_template(course, tmpl):
+                raise ValueError("這堂課不屬於任何固定課程，只能刪除這一堂")
+
         CourseService.cleanup_bookings_before_delete(course_id, admin_id=admin_id)
         course.soft_delete()
 
