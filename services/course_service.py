@@ -33,9 +33,9 @@ class CourseService:
         Turn a single calendar course into a recurring weekly template so it keeps
         showing up every future week regardless of payment status. Trial lessons are
         one-offs by nature and are never turned into a standing template. Matches on
-        day-of-week + start time + location so re-marking the same course "固定" twice
-        (or marking a course that a template already auto-generated) doesn't create
-        a duplicate template.
+        day-of-week + start time + location + coach + students so re-marking the same
+        course "固定" twice (or marking a course that a template already auto-generated)
+        doesn't create a duplicate template.
         """
         if course.is_trial or not student_ids:
             return None
@@ -52,12 +52,20 @@ class CourseService:
         start_time_str = local_start.strftime("%H:%M")
         end_time_str = local_end.strftime("%H:%M")
 
-        existing = db.session.query(CourseTemplate).filter(
+        # 同一場地同一時段常常有好幾堂課（不同教練，或同一位教練同時帶幾位
+        # 學生、每人各排一堂），所以教練和學生也要一樣才算同一個固定課。
+        # 以前只比星期/時間/場地，學生會被掛到別人的固定課底下、自己卻沒被
+        # 加進名單，下週就不會帶入（使用者回報的 Damon 案例）。
+        wanted = {str(sid) for sid in student_ids}
+        candidates = db.session.query(CourseTemplate).filter(
             CourseTemplate.day_of_week == day_of_week,
             CourseTemplate.start_time == start_time_str,
             CourseTemplate.location == course.location,
+            CourseTemplate.coach_id == course.coach_id if course.coach_id else CourseTemplate.coach_id.is_(None),
+            CourseTemplate.is_trial.is_(False),
             CourseTemplate.deleted_at.is_(None)
-        ).first()
+        ).all()
+        existing = next((t for t in candidates if wanted <= set(t.student_ids or [])), None)
         if existing:
             # 這一堂本身也要掛上模板，否則「來源那一堂」會被當成單堂課，
             # 刪除時不會出現「只刪這一堂／刪整個固定課程」的選擇。
@@ -81,6 +89,21 @@ class CourseService:
         db.session.flush()  # 取得 tmpl.id 才能回頭掛到這堂課上
         course.template_id = tmpl.id
         return tmpl
+
+    @staticmethod
+    def is_own_template(course: Course, tmpl: Optional[CourseTemplate]) -> bool:
+        """
+        True when `tmpl` is a live template whose student list covers every student
+        booked on `course`, i.e. the course really is one occurrence of that fixed
+        course. A course can still carry a template_id that fails this — the template
+        was deleted, or (before matching took coach/student into account) the course
+        was attached to another student's template — and then it must not be treated
+        as 固定 (edit checkbox, "delete whole series", re-marking).
+        """
+        if tmpl is None or tmpl.deleted_at is not None:
+            return False
+        booked = {str(b.user_id) for b in course.bookings if b.deleted_at is None}
+        return booked <= set(tmpl.student_ids or [])
 
     @staticmethod
     def create_course(
@@ -245,6 +268,13 @@ class CourseService:
         # upsert，_upsert_template_from_course 會因為找不到相符的模板而「新建一個」，
         # 舊模板卻還留著，結果之後每週都會生出兩堂課。要整個系列換時間請改
         # 「每週固定課表」頁面。
+        # 例外：掛著的模板已被刪除，或模板名單裡根本沒有這堂課的學生（舊版比對
+        # 不看教練/學生時錯掛上去的），這堂課其實不算固定課，要重新找/建模板，
+        # 否則再勾一次「固定」也不會有任何效果。
+        if is_recurring and course.template_id is not None:
+            linked = CourseTemplate.get(course.template_id)
+            if not CourseService.is_own_template(course, linked):
+                course.template_id = None
         if is_recurring and course.template_id is None:
             student_ids = [b.user_id for b in course.bookings if b.deleted_at is None]
             CourseService._upsert_template_from_course(course, student_ids)
@@ -269,7 +299,7 @@ class CourseService:
                       admin_id: Optional[uuid.UUID] = None) -> Optional[Dict[str, Any]]:
         """刪除課程。
         scope="occurrence"：只刪這一堂。因為 Course 上留著 template_id，
-          generate_courses_from_templates 會知道這一天已經生過並被刪掉，不會再生回來。
+          generate_courses_from_templates 會知道這一週已經生過並被刪掉，不會再生回來。
         scope="series"：連同固定課表模板一起停用，往後每週都不再帶入；同時把
           「今天以後」還沒上的同系列課程一併刪掉（過去的紀錄保留，才不會把已經
           上過的課從歷史/統計裡抹掉）。
@@ -391,19 +421,38 @@ class CourseService:
             start_dt = datetime(target_date.year, target_date.month, target_date.day, start_parts[0], start_parts[1], tzinfo=tz)
             end_dt = datetime(target_date.year, target_date.month, target_date.day, end_parts[0], end_parts[1], tzinfo=tz)
 
-            # 這個時段已經有課（不管是手動排的還是先前生成的）就不要再生一堂。
-            occupied = db.session.query(Course).filter(
-                Course.location == tmpl.location,
+            # 固定課只往未來排：切回過去的週次只是查看，不該替過去補生課程
+            # （補出來的課帶著預約，會灌進教練/學生的統計）。小編要補登過去的
+            # 單堂課，走手動建立課程，不受這裡影響。
+            if start_dt <= datetime.now(tz):
+                continue
+
+            # 這位學生在這個時間已經有課（例如小編先手動排了）就不要再生一堂。
+            # 只看同一位學生：同場地同時段本來就常有別的教練、別的學生的課，
+            # 以前只要場地時段被佔就跳過，第二個固定課就永遠生不出來。
+            # 體驗課模板沒有學生，維持「同場地同時段有課就跳過」。
+            occupied_q = db.session.query(Course).filter(
                 Course.start_time == start_dt,
                 Course.deleted_at.is_(None)
-            ).first()
+            )
+            if tmpl.student_ids and not tmpl.is_trial:
+                occupied_q = occupied_q.join(Booking, Booking.course_id == Course.id).filter(
+                    Booking.user_id.in_([uuid.UUID(sid) for sid in tmpl.student_ids]),
+                    Booking.deleted_at.is_(None)
+                )
+            else:
+                occupied_q = occupied_q.filter(Course.location == tmpl.location)
+            occupied = occupied_q.first()
 
-            # 這個模板在這一天已經生過課、但被小編刪掉了 —— 刻意「不」過濾
-            # deleted_at，這樣被刪掉的那一堂才不會下次載入行事曆時又冒出來
-            # （使用者回報的「部分課程刪不掉」就是這個原因）。
+            # 這個模板在這一週已經生過課，就算那堂後來被調到別的時間、或被小編
+            # 刪掉了 —— 刻意「不」過濾 deleted_at，這樣被刪掉的那一堂才不會下次
+            # 載入行事曆時又冒出來（使用者回報的「部分課程刪不掉」）；以整週為
+            # 範圍，調過時間的那堂也不會在原時段再生一堂。
+            week_start = datetime(monday_date.year, monday_date.month, monday_date.day, tzinfo=tz)
             already_generated = db.session.query(Course).filter(
                 Course.template_id == tmpl.id,
-                Course.start_time == start_dt
+                Course.start_time >= week_start,
+                Course.start_time < week_start + timedelta(days=7)
             ).first()
 
             if not occupied and not already_generated:

@@ -7,6 +7,11 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### 用 curl 打 API 要帶 Bearer token，不是 cookie（2026-11-06）
+- **狀況**：`curl -c cookiejar` 登入成功（200），但再打 `/api/courses` 回 401。
+- **原因**：`/api/auth/login` 是在 JSON 裡回傳 `token`，API 驗的是 `Authorization: Bearer <token>`。
+- **下次怎麼做**：`TOK=$(curl ... /api/auth/login | python3 -c '...["token"]')`，之後的請求都加 `-H "Authorization: Bearer $TOK"`。
+
 ### `docker pull` 連不到 Docker Hub，原因是 Docker Desktop 被關掉（2026-11-06）
 - **狀況**：`docker pull nginx:1.27-alpine` 一直 timeout，`curl registry-1.docker.io` 也連不上（pypi、`public.ecr.aws` 正常），我誤判成網路擋 Docker Hub，差點提議換 image 來源。
 - **原因**：使用者剛好關掉了 Windows 的 Docker Desktop；重新開啟後馬上就拉得到。

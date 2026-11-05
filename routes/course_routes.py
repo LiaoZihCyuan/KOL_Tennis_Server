@@ -49,6 +49,10 @@ def get_courses():
             return jsonify({"error": "Invalid coach_id format."}), 400
 
     courses = CourseService.get_courses(start_date, end_date, coach_id=coach_id)
+    template_ids = {c.template_id for c in courses if c.template_id}
+    templates_by_id = {
+        t.id: t for t in db.session.query(CourseTemplate).filter(CourseTemplate.id.in_(template_ids))
+    } if template_ids else {}
     result = []
 
     for c in courses:
@@ -114,8 +118,10 @@ def get_courses():
                 "trial_count": c.trial_count,
                 "trial_fee": c.trial_fee,
                 "is_other_student": False,
-                # 前端要靠這個判斷刪除時是否需要問「只刪這一堂／刪整個固定課程」
-                "is_recurring": c.template_id is not None,
+                # 前端要靠這個判斷刪除時是否需要問「只刪這一堂／刪整個固定課程」，
+                # 以及編輯視窗的「固定課程」是否打勾。模板已刪除或名單裡沒有這堂課
+                # 的學生時不算固定課，免得改個備註就把舊系列救回來、或誤刪別人的系列。
+                "is_recurring": CourseService.is_own_template(c, templates_by_id.get(c.template_id)),
                 "students": [{"id": str(b.student.id), "name": b.student.display_name, "status": b.status.value} for b in c.bookings if b.student]
             })
 
