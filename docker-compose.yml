@@ -4,8 +4,6 @@ services:
     container_name: flask_api_dev
     command: gunicorn --bind 0.0.0.0:5000 --reload manage:app
     restart: unless-stopped
-    ports:
-      - "5000:5000"
     volumes:
       - .:/app
       - ./migrations:/app/migrations
@@ -19,6 +17,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx_dev
+    restart: unless-stopped
+    ports:
+      - "5000:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
   db:
     image: postgres:16
     container_name: postgres_dev
@@ -60,9 +68,9 @@ services:
       - "4041:4040"
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
-    command: http api:5000
+    command: http nginx:80
     depends_on:
-      - api
+      - nginx
 volumes:
   pgdata:
   pgadmin_data:

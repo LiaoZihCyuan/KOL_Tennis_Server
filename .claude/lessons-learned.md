@@ -7,6 +7,11 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### `docker pull` 連不到 Docker Hub，原因是 Docker Desktop 被關掉（2026-11-06）
+- **狀況**：`docker pull nginx:1.27-alpine` 一直 timeout，`curl registry-1.docker.io` 也連不上（pypi、`public.ecr.aws` 正常），我誤判成網路擋 Docker Hub，差點提議換 image 來源。
+- **原因**：使用者剛好關掉了 Windows 的 Docker Desktop；重新開啟後馬上就拉得到。
+- **下次怎麼做**：Docker Hub 連不上時，先請使用者確認 Docker Desktop 有開著再重試，不要急著改 image 來源。
+
 ### 讀取課程（GET /api/courses）會自動產生整週的固定課（2026-10-17）
 - **狀況**：verifier 測試時查詢範圍跨到還沒產生過的週（或在看板切到新的一週），系統就依「所有」真實固定課表建出那週的課與學生預約（一次 100 多筆），本機 DB 被灌入大量資料。
 - **原因**：`CourseService.get_courses()` 會先對查詢範圍內每一週呼叫 `generate_courses_from_templates()`，讀取即寫入。

@@ -26,5 +26,6 @@ issues/
 .vscode/
 Dockerfile
 docker-compose*.yml
+deploy/
 environment.yml
 **/__pycache__/

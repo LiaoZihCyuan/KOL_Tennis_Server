@@ -48,7 +48,7 @@
 
 ## 本機開發
 
-- `docker-compose.yml`：開發環境，容器 `postgres_dev` 等
+- `docker-compose.yml`：開發環境，容器 `postgres_dev` 等。`localhost:5000` 是 `nginx_dev`，它再轉給 `flask_api_dev`（api 不對外開 port）
 - 單獨執行套件內的腳本要用 `python3 -m package.module`
 
 ## Production（AWS EC2）
@@ -59,7 +59,8 @@
 | 金鑰 | 專案根目錄 `koltennis_key.pem`（已 gitignore，絕不 commit） |
 | 程式碼目錄 | `~/app`（git clone，追 `origin/main`） |
 | Compose 檔 | `docker-compose.prod.yml` |
-| 容器 | `flask_api_prod`（gunicorn，host :80 → 5000）、`postgres_prod`（postgres:16） |
+| 容器 | `nginx_prod`（host :80，反向代理）→ `flask_api_prod`（gunicorn :5000，不對外開 port）、`postgres_prod`（postgres:16） |
+| nginx 設定 | `deploy/nginx.conf`（dev／prod 共用）：擋格式錯誤與慢速的請求，免得佔住 gunicorn 的 2 個 sync worker |
 | DB | user `appuser`、db `appdb` |
 | 備份 | EC2 上 `~/backup_db.sh`，cron 每天 20:00 UTC（台灣 04:00），保留 14 份於 `~/backups`，log 在 `~/backup.log` |
 | 時區 | 伺服器時鐘是 UTC；網站顯示固定台灣時間 |
