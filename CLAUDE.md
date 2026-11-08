@@ -127,6 +127,13 @@ Production 上是教練輸入的真實資料，以下動作執行前**必須先�
 - 修改 EC2 上的檔案、cron、系統套件
 - `scripts/pull_prod_data.sh` 會**覆蓋本機 DB**（prod → local）。絕不做反方向（local → prod）
 
+## 圖表（Archify）
+
+- 所有圖表一律輸出到 `diagrams/<類型>-<主題>-<YYYYMMDD>/<主題>.html`（不要放 `/tmp` 或 `.archify/`，會遺失），並 commit 進 git。
+- 每新增一張，在 `diagrams/index.html` 的清單最上面加一筆（類型、標題、日期、一句話說明）。
+- 給使用者的路徑用 Windows 格式：`\\wsl.localhost\Ubuntu\home\liaozihcyuan\KOL_Tennis_Server\diagrams\index.html`。
+- `diagrams/` 已列在 `.dockerignore`，不進 production image。
+
 ## 常用 workflow
 
 - **部署**：確認 `git status` 乾淨且已 push → 經使用者同意 → `bash scripts/deploy.sh` → 看 log 確認無錯誤

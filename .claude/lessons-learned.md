@@ -7,6 +7,21 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### 圖表輸出到 `/tmp`，之後全部不見（2026-11-08）
+- **狀況**：使用者想回頭查看之前畫的 Archify 圖，`/tmp` 裡已經找不到任何一張。
+- **原因**：WSL 重開後 `/tmp` 會被清空；當時沒有固定存放圖表的位置。
+- **下次怎麼做**：圖表一律輸出到專案的 `diagrams/`，並更新 `diagrams/index.html`（規則見 `CLAUDE.md`「圖表」段落）。
+
+### 給使用者 WSL 內的檔案路徑，在 Windows 點不開（2026-11-07）
+- **狀況**：把 Archify 產生的 HTML 以 `/tmp/...` 路徑給使用者，使用者回報點不開。
+- **原因**：使用者用的是 Windows 的瀏覽器，看不懂 WSL 的 Linux 路徑。
+- **下次怎麼做**：要給使用者打開的檔案，用 `wslpath -w` 轉成 `\\wsl.localhost\Ubuntu\...` 路徑再提供，或直接 `explorer.exe "<windows 路徑>"` 打開（成功時也常回傳 exit 1，要問使用者是否有開）。
+
+### 下載並執行外部安裝腳本會被自動模式擋下（2026-11-07）
+- **狀況**：使用者同意後要用 nvm 安裝腳本裝 Node（為了試用 Archify），`curl ... install.sh && bash install.sh` 被以 Code from External 拒絕。
+- **原因**：auto mode 不允許 Claude 自己執行從網路下載的程式碼，即使使用者口頭同意。
+- **下次怎麼做**：這台 WSL 沒有 Node。需要安裝外部工具時（nvm、`npx skills add` 等），直接把完整指令給使用者，請他用 `! <command>` 執行。
+
 ### 用 curl 打 API 要帶 Bearer token，不是 cookie（2026-11-06）
 - **狀況**：`curl -c cookiejar` 登入成功（200），但再打 `/api/courses` 回 401。
 - **原因**：`/api/auth/login` 是在 JSON 裡回傳 `token`，API 驗的是 `Authorization: Bearer <token>`。

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOL Tennis 圖表</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --text:#1d1d1b; --muted:#6b6b66; --line:#e2e2dc; --accent:#2f6f4f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161716; --card:#1f201f; --text:#ececea; --muted:#9a9a94; --line:#333431; --accent:#7cc39c; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:16px/1.6 system-ui, "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 24px; }
+  ul { list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+  li a { display:block; background:var(--card); border:1px solid var(--line); border-radius:10px;
+         padding:14px 16px; color:inherit; text-decoration:none; }
+  li a:hover { border-color:var(--accent); }
+  .title { font-weight:600; }
+  .meta { color:var(--muted); font-size:.9rem; }
+  .tag { display:inline-block; font-size:.75rem; color:var(--accent); border:1px solid var(--accent);
+         border-radius:999px; padding:0 8px; margin-right:6px; }
+  .empty { color:var(--muted); border:1px dashed var(--line); border-radius:10px; padding:24px; text-align:center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>KOL Tennis 圖表</h1>
+  <p class="sub">Archify 產生的架構圖、流程圖、ERD 等。新的圖放最上面。</p>
+
+  <!-- 新增圖表時，在這個 <ul> 最上面加一筆：
+  <li><a href="資料夾/檔名.html">
+    <span class="tag">類型</span><span class="title">標題</span>
+    <div class="meta">YYYY-MM-DD · 一句話說明</div>
+  </a></li>
+  -->
+  <ul id="diagrams">
+  </ul>
+  <p class="empty" id="empty">還沒有圖表。</p>
+</main>
+<script>
+  if (document.querySelector('#diagrams li')) document.getElementById('empty').remove();
+</script>
+</body>
+</html>
