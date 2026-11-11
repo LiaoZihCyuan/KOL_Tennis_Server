@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
-from sqlalchemy import select, func, extract
+from sqlalchemy import select, func, extract, text
 
 from extensions import db
 from models.course import Course, CourseStatus
@@ -15,6 +15,10 @@ from models.user import User, UserRole
 # 的地方都必須先轉成這個時區再取，不能直接對原始 datetime 呼叫 .hour /
 # .weekday() / .strftime()。台灣沒有日光節約時間，固定 +08 即可。
 TAIPEI_TZ = timezone(timedelta(hours=8))
+
+# pg_advisory_xact_lock 的命名空間，避免和其他用途的 advisory lock 撞號。
+# 第二個參數是該週週一的 date.toordinal()。見 generate_courses_from_templates。
+_TEMPLATE_GENERATION_LOCK_NS = 0x4B4F4C01
 
 
 def to_taipei(dt: datetime) -> datetime:
@@ -412,6 +416,16 @@ class CourseService:
         so callers (see apply_templates_to_week) can tell the admin which students
         didn't get booked instead of it happening invisibly.
         """
+        # 同一週同時只能有一個請求在生課。下面是「先查有沒有生過、沒有才新增」，
+        # 兩個請求同時打開還沒生過的週（例如小編和教練同時看看板），兩邊都會查到
+        # 「沒生過」而各生一份 —— 2026-10-06 prod 就因此整週課程重複。
+        # advisory lock 讓第二個請求等第一個 commit 完，再查就會看到已生過；
+        # lock 在這個交易 commit／rollback 時自動釋放。
+        db.session.execute(
+            text("SELECT pg_advisory_xact_lock(:ns, :week)"),
+            {"ns": _TEMPLATE_GENERATION_LOCK_NS, "week": monday_date.date().toordinal()}
+        )
+
         templates = CourseTemplate.get_active_templates()
         created_count = 0
         skipped: List[Dict[str, Any]] = []

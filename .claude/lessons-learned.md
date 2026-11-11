@@ -7,6 +7,20 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### 本機 `localhost:5000` 連不上：`nginx_dev` 停掉了（2026-11-11）
+- **狀況**：curl 登入回傳空內容，`localhost:5000` connection refused；其他容器都在跑，只有 `nginx_dev` 是 `Exited (127)`。
+- **下次怎麼做**：連不上就先 `docker ps -a --filter name=nginx`，停掉的話 `docker start nginx_dev` 再測。
+
+### 本機 dev 只有 1 個 gunicorn worker，用 curl 重現不了併發問題（2026-11-11）
+- **狀況**：要重現「兩個請求同時生課造成重複」，但 dev 的 gunicorn 沒設 `--workers`（預設 1），請求會排隊；prod 是 2 個 worker。
+- **下次怎麼做**：併發問題用腳本開多個 process，在 `flask_api_dev` 容器內 `with app.app_context()` 直接同時呼叫 service，對沒產生過的遠期週測試，測完刪掉測試資料。
+  注意 `credit_transactions` 連到 bookings 的欄位是 `related_booking_id`，刪測試預約前先查它。
+
+### 回覆使用者時突然改用英文（2026-11-11）
+- **狀況**：使用者用中文回報課程重複，我的調查結果與 drill-me 提問卻寫成英文，使用者質疑是不是降智或換模型。
+- **原因**：調查過程中的思考與指令都是英文，寫回覆時沒有切回使用者的語言。
+- **下次怎麼做**：給使用者看的文字一律用繁體中文（程式碼、指令、檔名維持原樣）。
+
 ### 圖表輸出到 `/tmp`，之後全部不見（2026-11-08）
 - **狀況**：使用者想回頭查看之前畫的 Archify 圖，`/tmp` 裡已經找不到任何一張。
 - **原因**：WSL 重開後 `/tmp` 會被清空；當時沒有固定存放圖表的位置。
