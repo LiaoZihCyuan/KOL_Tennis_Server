@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>把 AI 用在有正式站的專案：KOL Tennis</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --paper: #ffffff; --ink: #1c2530; --muted: #5d6b7a; --line: #d9dee5;
+    --accent: #c44d17; --accent-soft: #fdeee5; --green: #0b7a53; --green-soft: #e3f5ee;
+    --red: #b81f41; --red-soft: #fce8ed; --code: #f1f3f6;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.8; font-size: 17px;
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif; }
+  .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 40px; max-width: 1180px; margin: 0 auto; padding: 40px 24px 96px; }
+  nav.toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px); overflow: auto; font-size: 14.5px; line-height: 1.5; }
+  nav.toc .toc-title { font-weight: 700; color: var(--muted); font-size: 13px; letter-spacing: .08em; margin: 0 0 10px; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; }
+  nav.toc li { margin: 0; }
+  nav.toc a { display: block; padding: 5px 10px; border-left: 2px solid var(--line); color: var(--muted); text-decoration: none; }
+  nav.toc a.sub { padding-left: 24px; font-size: 13.5px; }
+  nav.toc a:hover { color: var(--ink); }
+  nav.toc a.on { color: var(--accent); border-left-color: var(--accent); font-weight: 700; }
+  main { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 48px 56px 56px; min-width: 0; }
+  header.doc p.kicker { color: var(--accent); font-weight: 700; font-size: 14px; letter-spacing: .06em; margin: 0 0 8px; }
+  h1 { font-size: 34px; line-height: 1.3; margin: 0 0 14px; text-wrap: balance; }
+  header.doc .lead { font-size: 19px; color: var(--muted); margin: 0; max-width: 34em; }
+  section { padding-top: 44px; }
+  section#summary { padding-top: 0; }
+  h2 { font-size: 25px; line-height: 1.35; margin: 0 0 6px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
+  h2 .no, h3 .no { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 10px; }
+  h2 .star { float: right; font-size: 13px; font-weight: 700; letter-spacing: .1em; color: var(--muted); padding-top: 12px; }
+  h3 { font-size: 20px; line-height: 1.4; margin: 34px 0 8px; }
+  p { margin: 0 0 14px; max-width: 42em; }
+  ul { margin: 0 0 14px; padding-left: 1.3em; max-width: 42em; }
+  li { margin-bottom: 6px; }
+  li::marker { color: var(--accent); }
+  code { font-family: "JetBrains Mono", Consolas, monospace; font-size: .88em; background: var(--code); padding: 2px 6px; border-radius: 5px; overflow-wrap: anywhere; }
+  .summary { background: var(--accent-soft); border: 1px solid #f3c7ae; border-radius: 12px; padding: 20px 24px; margin-top: 28px; }
+  .summary p { margin: 0 0 8px; max-width: none; } .summary p:last-child { margin: 0; }
+  .summary b { color: var(--accent); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 14px 0 18px; }
+  .cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 14px 0 18px; }
+  .box { border: 1.5px solid var(--line); border-radius: 12px; padding: 16px 20px; }
+  .box h4 { font-size: 17px; margin: 0 0 6px; }
+  .box p, .box li { font-size: 15.5px; line-height: 1.7; } .box p:last-child, .box ul:last-child { margin-bottom: 0; }
+  .box.green { background: var(--green-soft); border-color: #b5e2d0; }
+  .box.accent { background: var(--accent-soft); border-color: #f3c7ae; }
+  .box .after { color: var(--muted); }
+  .qa { background: #f6f7f9; border-radius: 12px; padding: 16px 20px; margin: 14px 0 18px; max-width: 42em; }
+  .qa p { margin: 0 0 6px; } .qa p:last-child { margin: 0; } .qa b { color: var(--accent); margin-right: 8px; }
+  .tablewrap { overflow-x: auto; margin: 14px 0 18px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1.5px solid var(--line); vertical-align: top; line-height: 1.6; }
+  th { font-size: 13.5px; color: var(--muted); }
+  td:first-child { font-weight: 700; white-space: nowrap; }
+  .tag { display: inline-block; font-size: 13px; font-weight: 700; padding: 1px 10px; border-radius: 999px; white-space: nowrap; }
+  .tag.deny { background: var(--red-soft); color: var(--red); }
+  .tag.ask { background: var(--accent-soft); color: var(--accent); }
+  .tag.ok { background: var(--green-soft); color: var(--green); }
+  figure { margin: 16px 0 22px; }
+  figure iframe { width: 100%; height: 640px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--bg); display: block; }
+  figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; display: flex; gap: 14px; flex-wrap: wrap; justify-content: space-between; }
+  figcaption a { color: var(--accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
+  ol.steps { list-style: none; counter-reset: s; margin: 14px 0 18px; padding: 0; max-width: 46em; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1.5px solid var(--line); margin: 0; }
+  ol.steps li::before { content: counter(s); font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+  ol.steps .who { font-size: 13.5px; font-weight: 700; white-space: nowrap; }
+  .who.me { color: var(--accent); } .who.ai { color: var(--green); } .who.hook { color: var(--red); }
+  .num { font-size: 40px; font-weight: 800; color: var(--accent); line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .num + p { font-size: 14.5px; color: var(--muted); margin: 6px 0 0; line-height: 1.6; }
+  .loop { display: flex; align-items: stretch; gap: 8px; margin-top: 16px; }
+  .loop .step { flex: 1; border: 1.5px solid #b5e2d0; background: var(--green-soft); border-radius: 10px; padding: 9px 8px; text-align: center; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+  .loop .step b { display: block; font-size: 15.5px; color: var(--ink); }
+  .loop .arr { align-self: center; color: var(--green); font-size: 20px; font-weight: 800; }
+  .loop-back { position: relative; height: 22px; margin: 0 9.5% 30px; border: 2px dashed var(--green); border-top: 0; border-radius: 0 0 12px 12px; }
+  .loop-back::before { content: "▲"; position: absolute; left: -8px; top: -8px; font-size: 12px; color: var(--green); }
+  .loop-back span { position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); background: var(--paper); padding: 0 10px; font-size: 14px; font-weight: 700; color: var(--green); white-space: nowrap; }
+  .takeaways { counter-reset: t; }
+  .takeaways .box { background: var(--ink); color: #f4f6f8; border-color: var(--ink); }
+  .takeaways .box::before { counter-increment: t; content: counter(t); display: block; font-size: 26px; font-weight: 800; color: #ffb48a; line-height: 1.2; margin-bottom: 6px; }
+  footer.doc { margin-top: 44px; padding-top: 16px; border-top: 1.5px solid var(--line); font-size: 14px; color: var(--muted); }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 16px 16px 64px; }
+    nav.toc { position: static; max-height: none; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+    nav.toc a.sub { display: none; }
+    main { padding: 26px 20px 36px; }
+    h1 { font-size: 27px; } h2 { font-size: 21px; } h2 .star { float: none; display: block; padding: 0 0 4px; }
+    .cols, .cols3 { grid-template-columns: 1fr; }
+    figure iframe { height: 460px; }
+    ol.steps li { grid-template-columns: 26px 1fr; } ol.steps .who { grid-column: 2; }
+    .loop { flex-direction: column; } .loop .arr { transform: rotate(90deg); }
+    .loop-back { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" aria-label="目錄">
+  <p class="toc-title">目錄</p>
+  <ol>
+    <li><a href="#summary">摘要</a></li>
+    <li><a href="#situation">1　背景</a></li>
+    <li><a class="sub" href="#s-project">1.1　這個專案</a></li>
+    <li><a class="sub" href="#s-arch">1.2　系統長什麼樣子</a></li>
+    <li><a class="sub" href="#s-hard">1.3　難在哪裡</a></li>
+    <li><a href="#task">2　任務</a></li>
+    <li><a href="#action">3　做法</a></li>
+    <li><a class="sub" href="#a-flow">3.1　整個流程</a></li>
+    <li><a class="sub" href="#a-gate1">3.2　第一關：動手前</a></li>
+    <li><a class="sub" href="#a-gate2">3.3　第二關：交付前</a></li>
+    <li><a class="sub" href="#a-gate3">3.4　第三關：碰正式站之前</a></li>
+    <li><a class="sub" href="#a-gate4">3.5　第四關：上線之後</a></li>
+    <li><a class="sub" href="#a-feedback">3.6　使用者回饋</a></li>
+    <li><a class="sub" href="#a-lessons">3.7　踩過的坑怎麼變成規則</a></li>
+    <li><a href="#result">4　結果</a></li>
+    <li><a class="sub" href="#r-case">4.1　一次實際的修正</a></li>
+    <li><a class="sub" href="#r-cost">4.2　代價</a></li>
+    <li><a href="#takeaways">5　帶得走的三件事</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="doc">
+  <p class="kicker">AI 讀書會 · 2026-11-12</p>
+  <h1>把 AI 用在有正式站的專案：KOL Tennis</h1>
+  <p class="lead">這份文件講的不是 AI 怎麼寫程式，是它寫完之後，一個改動怎麼一關一關走到線上。</p>
+</header>
+
+<section id="summary">
+  <div class="summary">
+    <p><b>背景</b>　KOL Tennis 是教練每天在用的網球排課網站，只有一台主機、一個資料庫，上面是客戶的真實資料。</p>
+    <p><b>任務</b>　讓 AI 幫我改這個網站，但不能弄壞線上資料，也不能靠我每次盯著它做完。</p>
+    <p><b>做法</b>　AI 的改動要過四關：動手前先調查再提案、由另一個 agent 獨立驗證、兩道不靠 AI 自律的 hook、上線後只看不改的檢查。</p>
+    <p><b>結果</b>　一次修正從部署到線上確認，我只需要回一次「好」、按一次同意；報告會寫出看了什麼、沒看什麼。代價是規則會誤擋，而且每一條都是踩過坑才加的。</p>
+  </div>
+</section>
+
+<section id="situation">
+  <h2><span class="no">1</span>背景<span class="star">SITUATION</span></h2>
+
+  <h3 id="s-project"><span class="no">1.1</span>這個專案</h3>
+  <p>KOL Tennis 是一個網球課程排課系統。教練和小編每天用它排課、點名、處理請假和續約，學生用它看自己的課表和剩餘堂數。</p>
+  <p>技術上很單純：Flask 加 PostgreSQL，用 Docker Compose 部署在一台 AWS EC2 上。</p>
+
+  <h3 id="s-arch"><span class="no">1.2</span>系統長什麼樣子</h3>
+  <p>圖的上半部是正式站：只有 nginx 對外，後面是 Flask 和 PostgreSQL。資料庫每天備份，每次部署前再備份一次。</p>
+  <p>下半部是我的電腦：Claude Code、hook、驗證用的瀏覽器都在這裡，<code>.dockerignore</code> 把它們排除在 image 之外。正式站只跑網站本身，AI 不住在上面。</p>
+  <figure>
+    <iframe src="../architecture-kol-tennis-system-20261112/kol-tennis-system.html" title="KOL Tennis 系統架構圖" loading="lazy"></iframe>
+    <figcaption><span>圖 1　系統架構。圖上每個方塊都點得到對應的設定檔。</span><a href="../architecture-kol-tennis-system-20261112/kol-tennis-system.html" target="_blank" rel="noopener">開新分頁看大圖 ↗</a></figcaption>
+  </figure>
+
+  <h3 id="s-hard"><span class="no">1.3</span>難在哪裡</h3>
+  <ul>
+    <li><b>沒有標準答案可以比對。</b>網站對不對，只能實際操作、看畫面。畫面跑版、按鈕沒反應，測試不一定抓得到。</li>
+    <li><b>沒有緩衝。</b>只有一台主機、一個資料庫，沒有介於本機和正式站之間的測試環境。</li>
+    <li><b>資料掉了無法交代。</b>正式站上是教練每天輸入的真實資料，而且跟我本機的資料不一樣。</li>
+  </ul>
+</section>
+
+<section id="task">
+  <h2><span class="no">2</span>任務<span class="star">TASK</span></h2>
+  <p>我想讓 AI 幫我改這個網站，從查問題、寫程式到部署。但有三件事必須成立：</p>
+  <ul>
+    <li><b>AI 說「做完了」，就要是真的做完了。</b>最常見的狀況不是它寫錯，而是它以為自己寫對了。</li>
+    <li><b>線上資料不能被動到。</b>不管 AI 多有把握，收不回來的動作不能由它自己決定。</li>
+    <li><b>不能靠我盯。</b>我沒辦法每次都看著它做完每一步，所以規則不能只寫在提示裡，要有機制去擋。</li>
+  </ul>
+</section>
+
+<section id="action">
+  <h2><span class="no">3</span>做法<span class="star">ACTION</span></h2>
+
+  <h3 id="a-flow"><span class="no">3.1</span>整個流程</h3>
+  <p>先看綠色主線，從左到右：提需求、AI 先調查再提案、我說可以、實作、驗證、commit、部署、上線後檢查。紅色兩格是 hook，不靠 AI 記得。</p>
+  <p>四關分別是：動手前的確認、獨立驗證、部署前的詢問、上線後的唯讀檢查。左下角是第二個入口（使用者回饋），最右邊是回饋的結案，在 3.6 說明。</p>
+  <figure>
+    <iframe src="../workflow-ai-change-to-prod-20261112/ai-change-to-prod.html" title="AI 的改動怎麼走到正式站 流程圖" loading="lazy"></iframe>
+    <figcaption><span>圖 2　AI 的改動怎麼走到正式站。</span><a href="../workflow-ai-change-to-prod-20261112/ai-change-to-prod.html" target="_blank" rel="noopener">開新分頁看大圖 ↗</a></figcaption>
+  </figure>
+
+  <h3 id="a-gate1"><span class="no">3.2</span>第一關：動手前，先查清楚再提案</h3>
+  <p>改任何程式碼或設定之前，AI 都要走這一關。規則寫在一個叫 <code>grill-me</code> 的 skill 裡：</p>
+  <ul>
+    <li>AI 先自己調查：讀程式碼、在本機重現、看資料和 git 歷史。查得到的事實不問我；要翻很多檔案時，派另一個 agent 去查。</li>
+    <li>一次給我完整的提案：原因、要改哪些檔案、怎麼驗證。</li>
+    <li>只有真的該我決定的事才問，例如業務規則和取捨，而且每一題都附上它的建議答案。</li>
+    <li>我沒提的功能、重構、「順便」的修改都不做；想到了就寫在提案裡，由我決定。</li>
+    <li>我說「可以」才開始。實作中要偏離計畫，就停下來重新確認。</li>
+  </ul>
+  <p>一開始的規則是一次問一題，結果簡單的事也要來回好幾輪，後來才改成現在這樣。附建議答案是關鍵：我大部分時候只需要說好或不好。下面是實際的對話：</p>
+  <div class="qa">
+    <p><b>問</b>每一次查事實都派 sub-agent，還是只有比較大的查詢才派？</p>
+    <p><b>建議</b>要翻好幾個檔案的才派；一兩個指令查得到的直接查。</p>
+    <p><b>我</b>照建議。</p>
+  </div>
+
+  <h3 id="a-gate2"><span class="no">3.3</span>第二關：交付前，驗證的人不能是寫的人</h3>
+  <p>網站沒有標準答案可以比對，所以我把「寫」和「驗」拆成兩個角色。</p>
+  <div class="cols">
+    <div class="box">
+      <h4>實作的 AI</h4>
+      <ul>
+        <li>寫程式，自己先測到會過</li>
+        <li>不准宣稱「完成」</li>
+        <li>不准自己記錄 PASS</li>
+        <li>PASS 之前不准 commit</li>
+      </ul>
+    </div>
+    <div class="box green">
+      <h4>verifier agent</h4>
+      <ul>
+        <li>只拿到需求和驗收條件，拿不到「我覺得好了」</li>
+        <li>自己讀 diff，開瀏覽器實際操作、看截圖</li>
+        <li>桌機和手機、三種角色都跑</li>
+        <li>FAIL 就退回；修完要開一個新的 verifier 重驗</li>
+      </ul>
+    </div>
+  </div>
+  <p>verifier 的設定檔第一段話是：另一個 agent 改了程式而且相信它能動，你的工作是查出這是不是真的，你不站在它那邊。</p>
+  <p>PASS 是綁在改動內容的指紋上，不是綁在「這個任務」上。驗完之後再改任何一個網站檔案，PASS 就失效，要重驗。</p>
+
+  <h3 id="a-gate3"><span class="no">3.4</span>第三關：碰正式站之前，兩道 hook</h3>
+  <p>hook 是 Claude Code 在特定時機自動執行的腳本，AI 繞不過去。這裡的原則是：出錯了收不回來的用擋的，其他會動到線上的用問的。</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th>機制</th><th>什麼時候跑</th><th>做什麼</th><th></th></tr>
+    <tr><td>Stop hook</td><td>AI 想結束回合</td><td>有還沒驗證的改動，就擋下來要它先去驗證</td><td><span class="tag ask">擋一次</span></td></tr>
+    <tr><td rowspan="2">guard hook</td><td rowspan="2">每一個指令執行前</td><td>刪資料表、刪 volume、清空資料、刪備份</td><td><span class="tag deny">一律拒絕</span></td></tr>
+    <tr><td style="font-weight:400;white-space:normal">部署、migration、寫入 SQL、重啟容器</td><td><span class="tag ask">強制問我</span></td></tr>
+    <tr><td>部署腳本</td><td>部署的第一步</td><td>先備份資料庫，備份檔是空的或壞的就中止</td><td><span class="tag ok">自動</span></td></tr>
+  </table>
+  </div>
+  <p>「一律拒絕」的意思是不管 AI 怎麼說、我怎麼說都不執行，真的要做，我得自己下指令。</p>
+
+  <h3 id="a-gate4"><span class="no">3.5</span>第四關：上線之後，再看一次但只看不改</h3>
+  <p>本機驗過不代表線上沒問題，因為正式站的資料跟本機不一樣。所以部署完還有一次檢查，但規則反過來：verifier 只能看。</p>
+  <ul>
+    <li>瀏覽器在我的電腦上跑，透過網址連線，主機上不裝任何東西。</li>
+    <li>所有不是 GET 的請求一律擋掉，只放行一次登入；確認視窗自動按取消。</li>
+    <li>排課看板只看本週，不切換週次。</li>
+    <li>需要寫入才能驗的項目，在報告裡列為「未涵蓋」，以本機的驗證結果為準。</li>
+  </ul>
+  <div class="box accent" style="max-width:42em">
+    <h4>為什麼連「看」都要限制</h4>
+    <p>這個網站打開新的一週，伺服器就會照固定課表產生那一週的課。讀取本身會寫入資料，所以唯讀檢查只准看已經產生過的本週。這是踩過坑才知道的（見 4.2）。</p>
+  </div>
+
+  <h3 id="a-feedback"><span class="no">3.6</span>使用者回饋：從進來到結案</h3>
+  <p>除了我自己提需求，還有第二個入口。小編和教練可以在網站側邊欄送出意見回饋，內容存在正式站的資料庫裡；網站上只能送出，不能查看。</p>
+  <ul>
+    <li><b>讀取。</b>我輸入 <code>/feedback</code>，AI 去正式站把還沒解決的回饋讀出來，只讀不寫。</li>
+    <li><b>調查與提案。</b>每一筆先自己查清楚，再一次告訴我：這是 bug、功能建議、操作上的誤會還是重複，原因是什麼，建議怎麼處理。之後走的是同一條主線和同樣的四關。</li>
+    <li><b>結案。</b>有改程式的，要等部署到正式站之後才結案，不是本機修好就算。結案是對正式站的寫入，所以每次都要我同意，而且先備份、一次只更新指定的那一筆、寫明怎麼解決的。</li>
+  </ul>
+  <p>回饋的內容是別人輸入的文字，AI 只把它當成問題描述。裡面如果出現像指令的句子，一律不照做，並且告訴我。</p>
+
+  <h3 id="a-lessons"><span class="no">3.7</span>踩過的坑怎麼變成規則</h3>
+  <p>上面的規則不是一開始設計好的。AI 踩到坑、修好之後，當下就把它寫進 <code>.claude/lessons-learned.md</code>，寫三件事：狀況、原因、下次怎麼做。這個檔被 <code>CLAUDE.md</code> 匯入，所以下一次對話一開始 AI 就讀到了，不用我提醒。</p>
+  <div class="loop" role="img" aria-label="循環：踩到坑、修好當下就寫、CLAUDE.md 匯入、下次開工自動讀到、持續整理，然後回到下一次踩到坑">
+    <div class="step"><b>踩到坑</b>指令失敗、被擋、猜錯</div><span class="arr">→</span>
+    <div class="step"><b>修好當下就寫</b>狀況、原因、下次做法</div><span class="arr">→</span>
+    <div class="step"><b>CLAUDE.md 匯入</b>不用另外叫它去讀</div><span class="arr">→</span>
+    <div class="step"><b>下次開工自動讀到</b>同樣的坑不再踩</div><span class="arr">→</span>
+    <div class="step"><b>持續整理</b>同類更新、過時刪除</div>
+  </div>
+  <div class="loop-back"><span>下一次踩到坑，再走一圈</span></div>
+  <p>同類的坑更新原本那一條，環境變了、已經不成立的就刪掉，所以它不會越長越亂。這個檔由 AI 自己維護，目前二十多條。</p>
+</section>
+
+<section id="result">
+  <h2><span class="no">4</span>結果<span class="star">RESULT</span></h2>
+
+  <h3 id="r-case"><span class="no">4.1</span>一次實際的修正</h3>
+  <p>問題是「兩個人同時打開新的一週，課程會重複產生」。下面是它從修好到線上確認的過程：</p>
+  <ol class="steps">
+    <li><span>修正完成，本機驗證 PASS，commit。</span><span class="who ai">AI＋verifier</span></li>
+    <li><span>我問「推到正式版了嗎」。AI 比對本機、遠端、正式站三邊的版本：還沒，並說明部署會做什麼。</span><span class="who me">我：「好」</span></li>
+    <li><span>部署：先備份 → 重建容器 → 這次沒有 migration → 健康檢查通過。</span><span class="who hook">hook 問我一次</span></li>
+    <li><span>verifier 對正式站做唯讀檢查，桌機、手機各一次，前後約兩分鐘。</span><span class="who ai">verifier</span></li>
+    <li><span>報告：本週一百多堂課，重複 0 組、錯誤 0、被擋下的寫入 0。</span><span class="who ai">PASS</span></li>
+  </ol>
+  <p>整個過程我實際做的事，是回了一次「好」，加上 hook 跳出來時按一次同意。比較值得看的是報告裡的三個數字：</p>
+  <div class="cols3">
+    <div><div class="num">29/30</div><p>自動檢查通過。沒過的那一項是 verifier 自己把門檻寫錯，它寫在報告裡，沒有為了好看重跑一次。</p></div>
+    <div><div class="num">0</div><p>在正式站上執行的寫入。</p></div>
+    <div><div class="num">3</div><p>報告列出的「沒驗證到」項目：併發問題本身、其他週、教練和學生角色。</p></div>
+  </div>
+  <p>我要的就是這種報告：講清楚看了什麼、沒看什麼，而不是一句「都過了」。</p>
+
+  <h3 id="r-cost"><span class="no">4.2</span>代價：三個真的踩過的坑</h3>
+  <div class="cols3">
+    <div class="box">
+      <h4>順手刪掉 5 條 CSS</h4>
+      <p>AI 用「起點到終點」整段替換，把夾在中間的樣式一起刪了，一個橫幅蓋住晚上九點的課。</p>
+      <p class="after">程式沒壞、測試會過，第三次驗證看截圖才抓到。</p>
+    </div>
+    <div class="box">
+      <h4>讀取就是寫入</h4>
+      <p>verifier 測試時切到新的一週，系統一次建了一百多筆課程和預約，灌進本機資料庫。</p>
+      <p class="after">我自己都不知道有這個行為。之後多了一條規則：只查已經產生過的週。</p>
+    </div>
+    <div class="box">
+      <h4>hook 會誤擋</h4>
+      <p>guard hook 只看指令裡有沒有關鍵字，分不出那是真的要對正式站執行，還是只是檔名或一段文字。</p>
+      <p class="after">我選擇不放寬：誤擋只是多下一次指令，漏擋就收不回來。</p>
+    </div>
+  </div>
+</section>
+
+<section id="takeaways">
+  <h2><span class="no">5</span>帶得走的三件事</h2>
+  <div class="cols3 takeaways">
+    <div class="box"><p>寫的和驗的分開。只給驗證的人需求，不給結論。</p></div>
+    <div class="box"><p>收不回來的動作用 hook 擋，其他會動到線上的用問的。</p></div>
+    <div class="box"><p>要求報告寫出「沒驗證到什麼」，比寫「都過了」有用。</p></div>
+  </div>
+  <p>這三件事跟模型多強沒有關係，處理的是人和 AI 怎麼分工。</p>
+  <p>專案很小，一台主機、一個資料庫。hook 和 verifier 是十月中一天之內補上去的，起因是我發現自己沒辦法每次都盯著它做完。規則是一條一條踩出來的，不是一開始設計好的。</p>
+</section>
+
+<footer class="doc">兩張圖用 Archify 產生，放在同一個 <code>diagrams/</code> 資料夾。</footer>
+</main>
+</div>
+
+<script>
+  const links = [...document.querySelectorAll('nav.toc a')];
+  const targets = links.map(a => document.getElementById(a.getAttribute('href').slice(1))).filter(Boolean);
+  function spy() {
+    let current = targets[0];
+    for (const t of targets) if (t.getBoundingClientRect().top <= 120) current = t;
+    links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + current.id));
+  }
+  addEventListener('scroll', spy, { passive: true });
+  spy();
+</script>
+</body>
+</html>
