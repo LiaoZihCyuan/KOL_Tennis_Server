@@ -648,6 +648,10 @@ document.addEventListener('DOMContentLoaded', function() {
         eventClick: function(info) {
             const e = info.event;
             if (e.extendedProps.is_other_student) {
+                if (e.extendedProps.is_unassigned) {
+                    alert('此時段已有課程（教練待排）。');
+                    return;
+                }
                 alert(`此時段為 ${e.extendedProps.coach_name} 教練的授課時段（已有學員預約）。`);
                 return;
             }
@@ -751,6 +755,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (course.is_other_student) {
                             bgColor = '#ffffff';
                             borderColor = '#e2e8f0';
+                            // 遮蔽過的課沒有教練時，後端給的名字是佔位用的「教練」
+                            if (!course.coach_id) coachDisplayName = '待排';
                         } else if (status === 'cancelled') {
                             bgColor = '#9ca3af'; // 灰色置頂 (請假)
                             borderColor = '#9ca3af';

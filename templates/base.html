@@ -244,6 +244,7 @@
                         document.getElementById('student-menu').classList.remove('hidden');
                         document.getElementById('student-menu').classList.add('flex');
                         document.getElementById('admin-menu').classList.add('hidden');
+                        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
                     } else if (user.role === 'coach') {
                         document.getElementById('user-role-badge').className = "text-[10px] text-purple-600 font-semibold uppercase tracking-wider";
                         document.getElementById('student-menu').classList.add('hidden');

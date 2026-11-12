@@ -7,6 +7,16 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### 跑 `/graphify` 產生的 `graphify-out/` 被 Stop hook 當成未驗證的 app 改動（2026-11-12）
+- **狀況**：第一次跑 graphify，等背景 agent 的每個回合都被 `require_verification.py` 擋一次，要求開 verifier，但其實沒有改任何網站程式碼。
+- **原因**：`graphify-out/` 是未追蹤、也沒被 `.gitignore` 排除的新目錄，`verdict.py` 把所有不在忽略清單內的未追蹤檔都算進改動指紋。另外這台的 `graphify` 不在 PATH，CLI 要用 `python3 -m graphify ...`。
+- **下次怎麼做**：工具會在專案內產生新的輸出目錄時，動手前先問使用者要不要加進 `.gitignore`／`.dockerignore`；被 hook 擋下時照實說「驗證尚未執行、沒有改 app」，不要為了過 hook 去開 verifier。
+
+### 用 SQL 查 `users.role` 要用大寫的 enum 值（2026-11-12）
+- **狀況**：對 prod 唯讀查詢 `WHERE u.role IN ('coach','admin')`，PostgreSQL 回 `invalid input value for enum userrole: "coach"`。
+- **原因**：DB 的 `userrole` enum 存的是大寫（`ADMIN`／`COACH`／`STUDENT`），API 與前端看到的小寫是序列化後的值。
+- **下次怎麼做**：SQL 裡寫 `u.role = 'COACH'`，或用 `lower(u.role::text)` 比對。
+
 ### 新 API 沒先擋好異常輸入，verifier 一輪只抓到一種，連續 FAIL 三次（2026-11-12）
 - **狀況**：`POST /api/feedback` 先後因 JSON 陣列、NUL 字元、半個 emoji（lone surrogate）、上萬層巢狀 JSON 回 500，每修一種就要重跑一次 10～20 分鐘的 verifier。
 - **原因**：`request.get_json(silent=True)` 不保證回傳 dict，也只吞格式錯誤（`RecursionError` 會穿出去）；字串直接寫進 PostgreSQL 前沒有清掉存不進去的字元。
