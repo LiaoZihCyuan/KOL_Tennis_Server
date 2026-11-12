@@ -55,6 +55,16 @@
   .who.me { color: var(--accent); } .who.ai { color: var(--green); } .who.hook { color: var(--red); }
   .qa { font-size: 22px; line-height: 1.6; background: #f6f7f9; border-radius: 12px; padding: 20px 24px; }
   .qa b { color: var(--accent); }
+  /* lessons-learned loop */
+  .loop { display: flex; align-items: stretch; gap: 8px; margin-top: 18px; }
+  .loop .step { flex: 1; border: 1.5px solid #b5e2d0; background: var(--green-soft); border-radius: 10px;
+    padding: 9px 6px; text-align: center; font-size: 16px; white-space: nowrap; line-height: 1.4; color: var(--muted); }
+  .loop .step b { display: block; font-size: 19px; color: var(--ink); white-space: nowrap; }
+  .loop .arr { align-self: center; color: var(--green); font-size: 24px; font-weight: 800; }
+  .loop-back { position: relative; height: 24px; margin: 0 9.5%; border: 2px dashed var(--green); border-top: 0; border-radius: 0 0 12px 12px; }
+  .loop-back::before { content: "▲"; position: absolute; left: -9px; top: -8px; font-size: 14px; color: var(--green); }
+  .loop-back span { position: absolute; left: 50%; bottom: -13px; transform: translateX(-50%); background: var(--paper);
+    padding: 0 12px; font-size: 17px; font-weight: 700; color: var(--green); white-space: nowrap; }
   /* diagram slides */
   .slide.diagram { padding: 22px 28px 20px; }
   .slide.diagram .bar { display: flex; align-items: baseline; gap: 18px; margin-bottom: 12px; }
@@ -111,17 +121,17 @@
   <div class="bar"><p class="kicker">整個流程</p><h1>AI 的改動要過四關才到正式站</h1>
     <a href="../workflow-ai-change-to-prod-20261112/ai-change-to-prod.html" target="_blank" rel="noopener">開新分頁看大圖 ↗</a></div>
   <iframe src="../workflow-ai-change-to-prod-20261112/ai-change-to-prod.html" title="AI 的改動怎麼走到正式站 流程圖" loading="lazy"></iframe>
-  <aside class="note">先看綠色主線，從左到右：提需求、AI 追問、我說可以、實作、驗證、commit、部署、上線後檢查。再看紅色兩格，那是 hook，不靠 AI 記得。四關分別是：動手前的確認、獨立驗證、部署前的詢問、上線後的唯讀檢查。後面四張各講一關。這張圖建議開新分頁放大講。</aside>
+  <aside class="note">先看綠色主線，從左到右：提需求、AI 先調查再給提案、我說可以、實作、驗證、commit、部署、上線後檢查。再看紅色兩格，那是 hook，不靠 AI 記得。四關分別是：動手前的確認、獨立驗證、部署前的詢問、上線後的唯讀檢查。後面四張各講一關。這張圖今天晚上更新過，多了兩段：左下角是第二個入口，小編和教練在網站上送出的意見回饋，我輸入 /feedback，AI 就去正式站把還沒解決的讀出來，只讀不寫，然後走同一條主線；最右邊是結案，部署完、線上確認過，我同意之後才把那一筆回饋標成已解決，而且先備份、一次只改一筆。左邊橘色那格是調查用的 sub-agent，要翻很多檔案時才派。這張圖建議開新分頁放大講。</aside>
 </section>
 
 <section class="slide">
   <p class="kicker">第一關　動手前</p>
-  <h1>先問清楚，我說「可以」才開始</h1>
+  <h1>先查清楚再提案，我說「可以」才開始</h1>
   <div class="cols">
     <div>
       <ul>
-        <li>一次只問一題，每題附建議答案</li>
-        <li>查得到的事實 AI 自己查，只有要我決定的才問</li>
+        <li>AI 先自己調查，一次給完整提案：原因、改法、怎麼驗證</li>
+        <li>只有要我決定的事才問，每題附建議答案</li>
         <li>我沒提的功能、重構、「順便」的修改都不做</li>
         <li>實作中要偏離計畫，停下來重新確認</li>
       </ul>
@@ -133,7 +143,7 @@
     </div>
   </div>
   <p class="foot">skill 叫 <code>grill-me</code>，仿 Matt Pocock 的同名 skill。右邊是今天早上的實際對話。</p>
-  <aside class="note">這跟前面 /ship 的訪談是同一個概念，差別在這個專案把它寫成強制：改任何程式碼或設定之前都要走。右邊是今天早上的真實例子，我要改這個 skill 本身的一條規則，它先問了一題、附建議，我回「照建議」三個字就定案。重點是附建議答案：我大部分時候只需要說好或不好。</aside>
+  <aside class="note">這跟前面 /ship 的訪談是同一個概念，差別在這個專案把它寫成強制：改任何程式碼或設定之前都要走。原本的規則是一次問一題，簡單的事也要來回好幾輪；現在改成 AI 先把程式碼、資料、git 歷史查清楚，一次給我完整的提案，細節它能判斷的就直接寫進提案，只有業務規則、取捨這種真的該我決定的才問。右邊是今天早上的真實例子，我要改這個 skill 本身的一條規則，它問了一題、附建議，我回「照建議」三個字就定案。重點是附建議答案：我大部分時候只需要說好或不好。</aside>
 </section>
 
 <section class="slide">
@@ -237,8 +247,16 @@
       <p style="margin:0;color:var(--muted)">我選擇不放寬。</p>
     </div>
   </div>
-  <p class="foot">這些都記在 <code>.claude/lessons-learned.md</code>，AI 每次開工都會讀到，踩到新的坑當下就寫進去。</p>
-  <aside class="note">第一個是驗證機制有用的例子：程式沒壞、測試會過，要看截圖才看得出來。第二個讓我多了一條規則：測試只查已經產生過的週。第三個是 hook 的代價，也是今天現場發生的：它分不出關鍵字是出現在真的要對正式站執行的指令裡，還是只是檔名或文字。我不放寬的理由是，它保護的是客戶資料，誤擋只是多下一次指令，漏擋就收不回來。lessons-learned 這個檔是 AI 自己維護的，規則是踩到坑修好之後當下就寫，不用等我要求。</aside>
+  <div class="loop" role="img" aria-label="lessons learned 的循環：踩到坑、修好當下就寫、CLAUDE.md 匯入、下次開工自動讀到、同類更新過時刪除，然後回到下一次踩到坑">
+    <div class="step"><b>踩到坑</b>指令失敗、被擋、猜錯</div><span class="arr">→</span>
+    <div class="step"><b>修好當下就寫</b>狀況、原因、下次做法</div><span class="arr">→</span>
+    <div class="step"><b>CLAUDE.md 匯入</b>不用另外叫它去讀</div><span class="arr">→</span>
+    <div class="step"><b>下次開工自動讀到</b>同樣的坑不再踩</div><span class="arr">→</span>
+    <div class="step"><b>持續整理</b>同類更新、過時刪除</div>
+  </div>
+  <div class="loop-back"><span>下一次踩到坑，再走一圈</span></div>
+  <p class="foot">記在 <code>.claude/lessons-learned.md</code>，由 AI 自己維護，目前二十多條。</p>
+  <aside class="note">第一個是驗證機制有用的例子：程式沒壞、測試會過，要看截圖才看得出來。第二個讓我多了一條規則：測試只查已經產生過的週。第三個是 hook 的代價，也是今天現場發生的：它分不出關鍵字是出現在真的要對正式站執行的指令裡，還是只是檔名或文字。我不放寬的理由是，它保護的是客戶資料，誤擋只是多下一次指令，漏擋就收不回來。下面那一排是這些坑怎麼變成規則的：踩到坑、修好之後當下就寫進 lessons-learned，寫三件事，狀況、原因、下次怎麼做。這個檔被 CLAUDE.md 匯入，所以下一次對話一開始 AI 就讀到了，不用我提醒。同類的坑更新原本那一條，環境變了、已經不成立的就刪掉，所以它不會越長越亂。這個檔是 AI 自己維護的，不用等我要求。</aside>
 </section>
 
 <section class="slide">
