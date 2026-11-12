@@ -757,7 +757,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         } else if (course.coach_color) {
                             bgColor = course.coach_color;
                             borderColor = course.coach_color;
-                        } else {
+                        } else if (!course.coach_id) {
+                            // 沒有指派教練才是「待排」。有教練但還沒設定代表色（較早建立的
+                            // 帳號）時照常顯示教練名稱，只是底色維持預設的灰色。
                             coachDisplayName = '待排';
                         }
 
