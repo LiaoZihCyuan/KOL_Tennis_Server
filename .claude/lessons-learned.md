@@ -31,6 +31,13 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 - **狀況**：為了一次比對版本，把 `verdict.py`（本機）和 `ssh ... ec2`（唯讀）串在同一條 Bash 指令，被 `guard_prod_db.py` 以「對 prod 執行 E2E 工具」拒絕。
 - **原因**：hook 是看整條指令字串，分不出 e2e 工具其實只在本機跑。
 - **下次怎麼做**：本機的 `scripts/e2e/*` 指令與對 prod 的 SSH 一律分成不同的 Bash 呼叫。
+  只是讀檔或寫文字也一樣：同一條指令裡同時出現 `e2e` 和 `scripts/deploy.sh`／`postgres_prod` 等字樣就會被擋，要拆開，或改用 Edit／Write 工具。
+
+### Archify 重畫既有的圖：舊的檢查檔擋住、browser-check 找不到瀏覽器（2026-11-12）
+- **狀況**：對已存在的輸出路徑重跑 `finalize`，先被 `viewer/evidence-path-conflict` 擋下；移開舊檔後又因找不到 Chrome 變成 `skipped`。
+- **下次怎麼做**：先把舊的 `<名稱>.browser-check.json` 移走（git 裡有舊版），並在指令前加
+  `ARCHIFY_CHROME=$(ls -d ~/.cache/ms-playwright/chromium-*/chrome-linux*/chrome | tail -1)`，用 Playwright 的 Chromium。
+  另外 workflow 圖最多 6 欄（`col` 0～5）。
 
 ### 本機 `localhost:5000` 連不上：`nginx_dev` 停掉了（2026-11-11）
 - **狀況**：curl 登入回傳空內容，`localhost:5000` connection refused；其他容器都在跑，只有 `nginx_dev` 是 `Exited (127)`。

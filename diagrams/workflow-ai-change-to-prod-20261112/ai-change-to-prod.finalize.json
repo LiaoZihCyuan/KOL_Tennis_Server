@@ -5,16 +5,16 @@
   "status": "pass",
   "type": "workflow",
   "quality": "showcase",
-  "startedAt": "2026-11-12T08:13:06.195Z",
+  "startedAt": "2026-11-12T11:46:16.208Z",
   "specification": {
     "path": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/workflow-ai-change-to-prod-20261112/candidate.json",
-    "sha256": "4f36b612b91c0c25022d211bfb37c8d6a3208200015963d92dd6971abbb7b998",
-    "bytes": 6690
+    "sha256": "c7277203367f92e0ab43ded3a5f60f3a91834df66b5e4e8a7f84abe859647f4f",
+    "bytes": 10189
   },
   "artifact": {
     "path": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/workflow-ai-change-to-prod-20261112/ai-change-to-prod.html",
-    "sha256": "3452ea14b83a3b43d3c5caa46c8d6ed5c196ee0d214f4a1e54cdcd43ec940225",
-    "bytes": 854074
+    "sha256": "26a93e29aa1965b733bf6e8cd41eb2efc1d5404c133673e9756c26cd9b2c04ec",
+    "bytes": 864831
   },
   "stages": {
     "validate": {
@@ -40,8 +40,8 @@
         "ok": true,
         "command": "validate",
         "specification": {
-          "sha256": "4f36b612b91c0c25022d211bfb37c8d6a3208200015963d92dd6971abbb7b998",
-          "bytes": 6690
+          "sha256": "c7277203367f92e0ab43ded3a5f60f3a91834df66b5e4e8a7f84abe859647f4f",
+          "bytes": 10189
         },
         "validation": {
           "checksPassed": 9,
@@ -56,7 +56,7 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 515,
+      "durationMs": 683,
       "command": [
         "/home/liaozihcyuan/.nvm/versions/node/v22.23.4/bin/node",
         "/home/liaozihcyuan/.claude/skills/archify/bin/archify.mjs",
@@ -72,19 +72,19 @@
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "08fb7a82-5fff-473b-9624-3472519293aa",
+        "receiptId": "480c260b-cec5-46f8-a033-f254d21fc01d",
         "ok": true,
         "command": "deliver",
         "type": "workflow",
         "input": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/workflow-ai-change-to-prod-20261112/candidate.json",
         "output": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/workflow-ai-change-to-prod-20261112/ai-change-to-prod.html",
         "specification": {
-          "sha256": "4f36b612b91c0c25022d211bfb37c8d6a3208200015963d92dd6971abbb7b998",
-          "bytes": 6690
+          "sha256": "c7277203367f92e0ab43ded3a5f60f3a91834df66b5e4e8a7f84abe859647f4f",
+          "bytes": 10189
         },
         "artifact": {
-          "sha256": "3452ea14b83a3b43d3c5caa46c8d6ed5c196ee0d214f4a1e54cdcd43ec940225",
-          "bytes": 854074
+          "sha256": "26a93e29aa1965b733bf6e8cd41eb2efc1d5404c133673e9756c26cd9b2c04ec",
+          "bytes": 864831
         },
         "validation": {
           "checksPassed": 9,
@@ -97,8 +97,8 @@
         "evidence": {
           "verified": true,
           "repository": "https://github.com/LiaoZihCyuan/KOL_Tennis_Server",
-          "revision": "96a79175aa09899a073405029844fc08305ac820",
-          "references": 15,
+          "revision": "94bb2152861bd7544513462ece0bb0ffa8b8d578",
+          "references": 21,
           "linkMode": "local-only"
         },
         "update": {
@@ -117,7 +117,7 @@
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 142,
+      "durationMs": 150,
       "command": [
         "/home/liaozihcyuan/.nvm/versions/node/v22.23.4/bin/node",
         "/home/liaozihcyuan/.claude/skills/archify/bin/archify.mjs",
@@ -129,8 +129,8 @@
         "ok": true,
         "file": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/workflow-ai-change-to-prod-20261112/ai-change-to-prod.html",
         "artifact": {
-          "sha256": "3452ea14b83a3b43d3c5caa46c8d6ed5c196ee0d214f4a1e54cdcd43ec940225",
-          "bytes": 854074
+          "sha256": "26a93e29aa1965b733bf6e8cd41eb2efc1d5404c133673e9756c26cd9b2c04ec",
+          "bytes": 864831
         },
         "checks": [
           {
@@ -197,7 +197,7 @@
             "containerBorderRuns": 0,
             "labelRouteClearanceIssues": 0,
             "labelCanvasOverflowIssues": 0,
-            "minLabelRouteClearance": 14.4,
+            "minLabelRouteClearance": 9,
             "desktopReadabilityIssues": 0,
             "viewportHeightIssues": 0,
             "minProjectedNodeTextPx": 7,
@@ -207,8 +207,8 @@
             "routesOverSuggestedStretch": 0,
             "minSegmentPx": 8,
             "minInteriorSegmentPx": null,
-            "shortSegmentCount": 4,
-            "shortEndpointSegmentCount": 4,
+            "shortSegmentCount": 11,
+            "shortEndpointSegmentCount": 11,
             "shortInteriorSegmentCount": 0,
             "microSegmentCount": 0
           },
@@ -238,22 +238,22 @@
             "hardFloorMet": true,
             "minimumOwner": {
               "kind": "node",
-              "id": "guard_hook"
+              "id": "propose"
             },
             "minimumSourceTextPx": 7,
             "minimumProjectedTextPx": 7,
-            "semanticTextCount": 33
+            "semanticTextCount": 44
           },
           "issues": []
         },
         "provenance": "current",
-        "deliveryReceiptId": "08fb7a82-5fff-473b-9624-3472519293aa"
+        "deliveryReceiptId": "480c260b-cec5-46f8-a033-f254d21fc01d"
       }
     },
     "browser-check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 2345,
+      "durationMs": 1966,
       "command": [
         "/home/liaozihcyuan/.nvm/versions/node/v22.23.4/bin/node",
         "/home/liaozihcyuan/.claude/skills/archify/bin/archify.mjs",
@@ -271,11 +271,11 @@
         "status": "pass",
         "visualReview": "not-requested",
         "provenance": "current",
-        "deliveryReceiptId": "08fb7a82-5fff-473b-9624-3472519293aa",
+        "deliveryReceiptId": "480c260b-cec5-46f8-a033-f254d21fc01d",
         "artifact": {
           "path": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/workflow-ai-change-to-prod-20261112/ai-change-to-prod.html",
-          "sha256": "3452ea14b83a3b43d3c5caa46c8d6ed5c196ee0d214f4a1e54cdcd43ec940225",
-          "bytes": 854074
+          "sha256": "26a93e29aa1965b733bf6e8cd41eb2efc1d5404c133673e9756c26cd9b2c04ec",
+          "bytes": 864831
         },
         "state": {
           "detail": "read",
@@ -307,7 +307,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1376,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 12,
                 "headerPx": 52,
@@ -316,16 +316,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -336,7 +337,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -360,8 +361,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -372,9 +374,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -384,11 +388,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -411,7 +415,7 @@
               "innerWidth": 1600,
               "innerHeight": 1000,
               "scrollWidth": 1600,
-              "scrollHeight": 1388,
+              "scrollHeight": 1387,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -421,7 +425,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1536,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
@@ -430,16 +434,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -450,7 +455,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -474,8 +479,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -486,9 +492,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -498,11 +506,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -525,7 +533,7 @@
               "innerWidth": 1920,
               "innerHeight": 1080,
               "scrollWidth": 1920,
-              "scrollHeight": 1388,
+              "scrollHeight": 1387,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -535,7 +543,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1856,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
@@ -544,16 +552,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -564,7 +573,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -588,8 +597,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -600,9 +610,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -612,11 +624,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -639,7 +651,7 @@
               "innerWidth": 2048,
               "innerHeight": 1320,
               "scrollWidth": 2048,
-              "scrollHeight": 1406,
+              "scrollHeight": 1405,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -649,7 +661,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1920,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 68,
@@ -658,16 +670,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -678,7 +691,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -702,8 +715,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -714,9 +728,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -726,11 +742,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -816,7 +832,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1376,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 12,
                 "headerPx": 52,
@@ -825,16 +841,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -845,7 +862,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -869,8 +886,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -881,9 +899,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -893,11 +913,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -920,7 +940,7 @@
               "innerWidth": 1600,
               "innerHeight": 1000,
               "scrollWidth": 1600,
-              "scrollHeight": 1388,
+              "scrollHeight": 1387,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -930,7 +950,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1536,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
@@ -939,16 +959,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -959,7 +980,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -983,8 +1004,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -995,9 +1017,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -1007,11 +1031,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1034,7 +1058,7 @@
               "innerWidth": 1920,
               "innerHeight": 1080,
               "scrollWidth": 1920,
-              "scrollHeight": 1388,
+              "scrollHeight": 1387,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -1044,7 +1068,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1856,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
@@ -1053,16 +1077,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -1073,7 +1098,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -1097,8 +1122,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -1109,9 +1135,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -1121,11 +1149,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1148,7 +1176,7 @@
               "innerWidth": 2048,
               "innerHeight": 1320,
               "scrollWidth": 2048,
-              "scrollHeight": 1406,
+              "scrollHeight": 1405,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -1158,7 +1186,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1920,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 68,
@@ -1167,16 +1195,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -1187,7 +1216,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -1211,8 +1240,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -1223,9 +1253,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -1235,11 +1267,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1277,7 +1309,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1376,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 12,
                 "headerPx": 52,
@@ -1286,16 +1318,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -1306,7 +1339,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -1330,8 +1363,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -1342,9 +1376,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -1354,11 +1390,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1381,7 +1417,7 @@
               "innerWidth": 1600,
               "innerHeight": 1000,
               "scrollWidth": 1600,
-              "scrollHeight": 1388,
+              "scrollHeight": 1387,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -1391,7 +1427,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1536,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
@@ -1400,16 +1436,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -1420,7 +1457,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -1444,8 +1481,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -1456,9 +1494,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -1468,11 +1508,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1495,7 +1535,7 @@
               "innerWidth": 1920,
               "innerHeight": 1080,
               "scrollWidth": 1920,
-              "scrollHeight": 1388,
+              "scrollHeight": 1387,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -1505,7 +1545,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1856,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
@@ -1514,16 +1554,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -1534,7 +1575,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -1558,8 +1599,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -1570,9 +1612,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -1582,11 +1626,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1609,7 +1653,7 @@
               "innerWidth": 2048,
               "innerHeight": 1320,
               "scrollWidth": 2048,
-              "scrollHeight": 1406,
+              "scrollHeight": 1405,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -1619,7 +1663,7 @@
               "readerFit": "width-first",
               "ok": true,
               "readerWidth": 1920,
-              "diagramWidth": 1158,
+              "diagramWidth": 1188,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 68,
@@ -1628,16 +1672,17 @@
                 "cardsPx": 0,
                 "viewBoxHeight": 786
               },
-              "viewBoxWidth": 772,
+              "viewBoxWidth": 792,
               "workflowLanes": [
                 {
                   "frameId": "lane-0",
                   "heightPx": 159,
-                  "nodeCount": 3,
+                  "nodeCount": 4,
                   "nodeIds": [
                     "request",
                     "approve_plan",
-                    "approve_deploy"
+                    "approve_deploy",
+                    "approve_close"
                   ],
                   "nodeSpanPx": 78,
                   "spaceAboveNodesPx": 63,
@@ -1648,7 +1693,7 @@
                   "heightPx": 159,
                   "nodeCount": 4,
                   "nodeIds": [
-                    "grill",
+                    "propose",
                     "implement",
                     "commit",
                     "report"
@@ -1672,8 +1717,9 @@
                 {
                   "frameId": "lane-3",
                   "heightPx": 159,
-                  "nodeCount": 2,
+                  "nodeCount": 3,
                   "nodeIds": [
+                    "scout",
                     "verifier",
                     "prod_check"
                   ],
@@ -1684,9 +1730,11 @@
                 {
                   "frameId": "lane-4",
                   "heightPx": 159,
-                  "nodeCount": 1,
+                  "nodeCount": 3,
                   "nodeIds": [
-                    "deploy"
+                    "feedback_in",
+                    "deploy",
+                    "resolve"
                   ],
                   "nodeSpanPx": 102,
                   "spaceAboveNodesPx": 51,
@@ -1696,11 +1744,11 @@
               "minimumProjectedNodeTextPx": 7,
               "minimumProjectedNonEdgeTextPx": 7,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "破壞性拒絕，寫入先問",
+              "minimumProjectedNodeText": "原因、改法、驗證方式",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "guard_hook"
+                "id": "propose"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1741,8 +1789,8 @@
     "browserCheckReceipt": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/workflow-ai-change-to-prod-20261112/ai-change-to-prod.browser-check.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-11-12T08:13:09.330Z",
-  "durationMs": 3135,
+  "finishedAt": "2026-11-12T11:46:19.144Z",
+  "durationMs": 2935,
   "update": {
     "status": "current",
     "installedVersion": "3.2.0",

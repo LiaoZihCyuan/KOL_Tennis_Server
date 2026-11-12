@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/workflow-ai-change-to-prod-20261112/candidate.json",
-    "sha256": "4f36b612b91c0c25022d211bfb37c8d6a3208200015963d92dd6971abbb7b998",
-    "bytes": 6690
+    "sha256": "c7277203367f92e0ab43ded3a5f60f3a91834df66b5e4e8a7f84abe859647f4f",
+    "bytes": 10189
   },
   "artifact": {
     "path": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/workflow-ai-change-to-prod-20261112/ai-change-to-prod.html",
-    "sha256": "3452ea14b83a3b43d3c5caa46c8d6ed5c196ee0d214f4a1e54cdcd43ec940225",
-    "bytes": 854074
+    "sha256": "26a93e29aa1965b733bf6e8cd41eb2efc1d5404c133673e9756c26cd9b2c04ec",
+    "bytes": 864831
   },
   "gates": {
     "validate": "pass",
@@ -43,7 +43,7 @@
     "noticeText": null
   },
   "visualReview": "not-requested",
-  "durationMs": 3135,
+  "durationMs": 2935,
   "browserCheck": {
     "requested": true,
     "ran": true
