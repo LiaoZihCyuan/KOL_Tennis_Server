@@ -5,11 +5,14 @@
 - 程式碼規範與架構約定見 `AI_RULES.md` 第 2、3 節（Tech Stack、Coding Standards）。
   該檔第 1 節「禁止執行 Shell 指令」是寫給其他不能執行指令的 AI 工具的，**不適用於 Claude Code**。
 - 已知問題記錄在 `issues/`。
+- 小編／教練從網站送出的意見回饋存在 prod 的 `feedback` 資料表（網站只能送出、不能查看）。
+  使用者輸入 `/feedback` 時照 `.claude/skills/feedback/SKILL.md` 讀取、調查、修正並結案。
 
 ## 修改前先確認（grill me）
 
 改任何**程式碼或設定**之前，必須先照 `/grill-me` skill（`.claude/skills/grill-me/SKILL.md`）
-跟使用者確認清楚：一次問一題、附建議答案、能查的自己查，最後總結計畫並取得「可以」才動手。
+跟使用者確認清楚：先自己調查、一次給完整提案（原因、改法、驗證方式），
+只有真正需要使用者決定的事才提問並附建議答案，取得「可以」才動手。
 - 不要憑空想像需求：使用者沒要求的功能、重構、「順便」的修改都不做，想到了就提出來問。
 - 實作中要偏離已確認的計畫時，停下來重新確認。
 - `CLAUDE.md`、`.claude/lessons-learned.md`、`e2e_artifacts/` 測試腳本可以直接更新，不必先問。

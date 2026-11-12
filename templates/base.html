@@ -35,8 +35,9 @@
             </button>
         </div>
         
-        <!-- 主導航選單 -->
-        <div class="p-3 flex flex-col gap-1 border-b border-slate-100 text-sm">
+        <!-- 主導航選單。min-h-0 + overflow-y-auto：畫面太矮放不下全部項目時，讓選單自己捲動，
+             不要把底部的「我的帳號／登出」擠出畫面。 -->
+        <div class="p-3 flex flex-col gap-1 border-b border-slate-100 text-sm min-h-0 overflow-y-auto">
             <!-- 學員專屬導航 -->
             <div id="student-menu" class="hidden flex-col gap-1">
                 <div class="text-[11px] font-bold text-slate-400 px-3 py-1 uppercase tracking-wider">學員服務</div>
@@ -93,9 +94,17 @@
                 <div id="user-display-name" class="text-xs font-bold text-slate-700 truncate">管理員 / 小編</div>
                 <div id="user-role-badge" class="text-[10px] text-blue-600 font-semibold uppercase tracking-wider">ADMIN</div>
             </button>
-            <button id="auth-action-btn" onclick="handleAuthAction()" class="shrink-0 px-2.5 py-1 text-xs text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-md transition-all">
-                切換帳號
-            </button>
+            <div class="shrink-0 flex items-center gap-1.5">
+                <!-- 意見回饋入口放在這一列而不是上面的選單：選單多一項會把行事曆頁的
+                     「快速跳轉日期」小月曆擠掉。預設隱藏，登入的是小編／教練才顯示。 -->
+                <button type="button" id="feedback-open-btn" onclick="openFeedbackModal()" title="回報問題或建議"
+                    class="hidden px-2.5 py-1 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 rounded-md transition-all whitespace-nowrap">
+                    💬 意見回饋
+                </button>
+                <button id="auth-action-btn" onclick="handleAuthAction()" class="px-2.5 py-1 text-xs text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-md transition-all whitespace-nowrap">
+                    切換帳號
+                </button>
+            </div>
         </div>
     </aside>
 
@@ -175,6 +184,35 @@
         </div>
     </div>
 
+    <!-- 意見回饋：小編／教練回報問題或建議。只能送出，網站上沒有任何地方可以查看。 -->
+    <div id="feedbackModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-slate-900/50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-[440px] max-h-[90vh] overflow-y-auto">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-base font-bold text-slate-800">意見回饋</h3>
+                <button type="button" onclick="closeFeedbackModal()" class="text-slate-400 hover:text-slate-600 transition-colors" aria-label="關閉">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="feedbackForm" class="p-5 space-y-3">
+                <label for="feedbackContent" class="block text-sm font-medium text-slate-700">請描述您遇到的問題或建議</label>
+                <textarea id="feedbackContent" rows="6" maxlength="2000" required
+                    class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                    placeholder="例如：在哪一頁、做了什麼操作、看到什麼結果"></textarea>
+                <div class="text-right text-[11px] text-slate-400"><span id="feedbackCount">0</span> / 2000</div>
+                <div id="feedbackError" class="hidden text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2"></div>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button type="button" onclick="closeFeedbackModal()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">取消</button>
+                    <button type="submit" id="feedbackSubmitBtn" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-60">送出</button>
+                </div>
+            </form>
+            <div id="feedbackSuccess" class="hidden p-8 text-center">
+                <div class="text-3xl mb-2">✅</div>
+                <div class="text-sm font-medium text-slate-700">已收到您的回饋，謝謝！</div>
+                <button type="button" onclick="closeFeedbackModal()" class="mt-5 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">關閉</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // 所有呼叫自家 /api/... 的 fetch 都應該用這個，會自動帶上登入 token，
         // 並且在 token 失效/過期 (401) 時自動導回登入頁。
@@ -217,6 +255,7 @@
                         document.getElementById('admin-menu').classList.remove('hidden');
                         document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
                     }
+                    document.getElementById('feedback-open-btn').classList.toggle('hidden', user.role === 'student');
                     document.getElementById('auth-action-btn').textContent = '登出';
                 } catch(e) {}
             } else {
@@ -377,6 +416,74 @@
                     window.location.href = '/login';
                 } catch(err) {
                     showError(err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+
+        // ============================================================
+        // 意見回饋 (小編 / 教練)
+        // ============================================================
+        function openFeedbackModal() {
+            const modal = document.getElementById('feedbackModal');
+            if (!modal) return;
+            document.getElementById('feedbackForm').reset();
+            document.getElementById('feedbackForm').classList.remove('hidden');
+            document.getElementById('feedbackSuccess').classList.add('hidden');
+            document.getElementById('feedbackError').classList.add('hidden');
+            document.getElementById('feedbackCount').textContent = '0';
+            toggleSidebar(false);  // 手機上側邊欄是蓋在畫面上的，先收起來
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('feedbackContent').focus();
+        }
+
+        function closeFeedbackModal() {
+            const modal = document.getElementById('feedbackModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('feedbackForm');
+            if (!form) return;
+            const textarea = document.getElementById('feedbackContent');
+            textarea.addEventListener('input', function() {
+                document.getElementById('feedbackCount').textContent = textarea.value.length;
+            });
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const errBox = document.getElementById('feedbackError');
+                const submitBtn = document.getElementById('feedbackSubmitBtn');
+                errBox.classList.add('hidden');
+
+                const content = textarea.value.trim();
+                if (!content) {
+                    errBox.textContent = '請輸入回饋內容';
+                    errBox.classList.remove('hidden');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                try {
+                    const res = await authFetch('/api/feedback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            content: content,
+                            page_url: window.location.pathname + window.location.search
+                        })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.error || '送出失敗，請稍後再試');
+                    form.classList.add('hidden');
+                    document.getElementById('feedbackSuccess').classList.remove('hidden');
+                } catch(err) {
+                    errBox.textContent = err.message;
+                    errBox.classList.remove('hidden');
                 } finally {
                     submitBtn.disabled = false;
                 }

@@ -7,6 +7,16 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### 新 API 沒先擋好異常輸入，verifier 一輪只抓到一種，連續 FAIL 三次（2026-11-12）
+- **狀況**：`POST /api/feedback` 先後因 JSON 陣列、NUL 字元、半個 emoji（lone surrogate）、上萬層巢狀 JSON 回 500，每修一種就要重跑一次 10～20 分鐘的 verifier。
+- **原因**：`request.get_json(silent=True)` 不保證回傳 dict，也只吞格式錯誤（`RecursionError` 會穿出去）；字串直接寫進 PostgreSQL 前沒有清掉存不進去的字元。
+- **下次怎麼做**：寫接受 JSON 的新 API 時，一開始就 (1) `try/except` 包住 `get_json` 並檢查 `isinstance(data, dict)`，(2) 文字欄位去掉 `\x00` 並用 `.encode("utf-8", "ignore").decode()` 濾掉 surrogate；交給 verifier 前自己先用這幾種輸入打一輪。
+
+### 在 `base.html` 側邊欄選單加項目，會擠掉行事曆頁的小月曆與底部的登出（2026-11-12）
+- **狀況**：把「意見回饋」加在 admin 選單最下面（多 88px），矮的手機上底部「我的帳號／登出」被擠出畫面；改成選單可捲動後，換成 `/calendar` 側邊欄下方的「快速跳轉日期」小月曆被壓到只剩幾 px。
+- **原因**：側邊欄是「選單＋`sidebar_extra`（flex-1）＋底部列」直向排列，admin 選單本來就幾乎佔滿 720px 高的畫面，沒有多餘空間。
+- **下次怎麼做**：共用的新入口不要加進 admin 選單，放在底部那一列或頁首；動到 `base.html` 側邊欄時，自己先在 390x664 與 1280x720 用 admin 看 `/calendar` 的側邊欄再交給 verifier。
+
 ### 同一條指令同時有 e2e 工具與 prod SSH 會被 guard hook 擋下（2026-11-12）
 - **狀況**：為了一次比對版本，把 `verdict.py`（本機）和 `ssh ... ec2`（唯讀）串在同一條 Bash 指令，被 `guard_prod_db.py` 以「對 prod 執行 E2E 工具」拒絕。
 - **原因**：hook 是看整條指令字串，分不出 e2e 工具其實只在本機跑。
