@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/architecture-kol-tennis-system-20261112/candidate.json",
+    "sha256": "ef4f81b2ce9c9c06359ce80e2be98c91f7b802d7880c444f77295044acbff8f7",
+    "bytes": 4365
+  },
+  "artifact": {
+    "path": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/architecture-kol-tennis-system-20261112/kol-tennis-system.html",
+    "sha256": "c896ef80911467382522a0dbc3da9ba882fb2d7a0e2695cb616510eb29b40215",
+    "bytes": 847147
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/architecture-kol-tennis-system-20261112/kol-tennis-system.finalize.json",
+    "summaryReceipt": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/architecture-kol-tennis-system-20261112/kol-tennis-system.finalize-summary.json",
+    "browserCheckReceipt": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/architecture-kol-tennis-system-20261112/kol-tennis-system.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-11-12T08:12:57.163Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 2744,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

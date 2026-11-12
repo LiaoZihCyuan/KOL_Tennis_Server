@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "KOL Tennis 系統架構：正式站與本機開發",
+    "locale": "zh-TW",
+    "quality_profile": "showcase",
+    "output": "diagrams/architecture-kol-tennis-system-20261112/kol-tennis-system.html",
+    "repository": { "url": "https://github.com/LiaoZihCyuan/KOL_Tennis_Server.git", "revision": "96a79175aa09899a073405029844fc08305ac820", "link_mode": "local-only" }
+  },
+  "components": [
+    { "id": "browser", "type": "external", "label": "教練／學生", "sublabel": "瀏覽器，桌機與手機", "pos": [40, 90], "size": [150, 64],
+      "sources": [{ "path": "docker-compose.prod.yml", "line": 20, "end_line": 21 }] },
+    { "id": "nginx", "type": "security", "label": "nginx_prod", "sublabel": "反向代理，擋慢速請求", "pos": [290, 90], "size": [160, 64],
+      "sources": [{ "path": "docker-compose.prod.yml", "line": 16, "end_line": 25 }, { "path": "deploy/nginx.conf", "line": 4, "end_line": 23 }] },
+    { "id": "api", "type": "backend", "label": "flask_api_prod", "sublabel": "gunicorn，2 個 worker", "pos": [620, 90], "size": [170, 64], "tag": "Flask＋SQLAlchemy",
+      "sources": [{ "path": "docker-compose.prod.yml", "line": 2, "end_line": 15 }] },
+    { "id": "db", "type": "database", "label": "postgres_prod", "sublabel": "PostgreSQL 16，客戶資料", "pos": [930, 90], "size": [170, 64],
+      "sources": [{ "path": "docker-compose.prod.yml", "line": 26, "end_line": 41 }] },
+    { "id": "backup", "type": "database", "label": "~/backups", "sublabel": "每日＋部署前 pg_dump", "pos": [930, 270], "size": [170, 64], "tag": "保留 14 份",
+      "sources": [{ "path": "scripts/deploy.sh", "line": 11, "end_line": 19 }, { "path": "CLAUDE.md", "line": 65, "end_line": 65 }] },
+    { "id": "github", "type": "cloud", "label": "GitHub", "sublabel": "origin/main", "pos": [620, 450], "size": [170, 60],
+      "sources": [{ "path": "scripts/deploy.sh", "line": 21, "end_line": 25 }] },
+    { "id": "claude", "type": "frontend", "label": "Claude Code", "sublabel": "hook、agent、Playwright", "pos": [290, 620], "size": [160, 64], "tag": "不進正式站",
+      "sources": [{ "path": ".dockerignore", "line": 3, "end_line": 10 }, { "path": "CLAUDE.md", "line": 82, "end_line": 88 }] },
+    { "id": "devstack", "type": "backend", "label": "dev 容器組", "sublabel": "localhost:5000", "pos": [620, 620], "size": [170, 64], "tag": "nginx→Flask→PG",
+      "sources": [{ "path": "docker-compose.yml", "line": 2, "end_line": 39 }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "AWS EC2／docker-compose.prod.yml", "wraps": ["nginx", "api", "db", "backup"], "pad": 26 },
+    { "kind": "security-group", "label": "不對外開 port", "wraps": ["api", "db"], "pad": 14 },
+    { "kind": "region", "label": "本機 WSL／開發與 AI 工具", "wraps": ["claude", "devstack"], "pad": 26 }
+  ],
+  "connections": [
+    { "from": "browser", "to": "nginx", "label": "HTTP :80", "variant": "emphasis" },
+    { "from": "nginx", "to": "api", "label": "proxy_pass api:5000", "variant": "emphasis" },
+    { "from": "api", "to": "db", "label": "SQL（psycopg）", "variant": "emphasis" },
+    { "from": "db", "to": "backup", "label": "pg_dump", "variant": "dashed" },
+    { "from": "claude", "to": "devstack", "label": "寫入測試只在本機" },
+    { "from": "claude", "to": "github", "label": "git push" },
+    { "from": "github", "to": "api", "label": "deploy.sh：pull＋rebuild", "variant": "security" },
+    { "from": "claude", "to": "nginx", "label": "上線後唯讀驗證（GET）", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "請求路徑", "items": [
+      "只有 nginx 對外開 80；Flask 與 PostgreSQL 只在 Docker 內部網路",
+      "nginx 先把請求讀完才交給 gunicorn，慢速連線不會佔住 2 個 worker" ] },
+    { "dot": "rose", "title": "資料保護", "items": [
+      "每天台灣時間 04:00 備份，另外每次部署前再備份一次",
+      "正式資料只能單向拉回本機（pull_prod_data.sh），不做反方向" ] },
+    { "dot": "amber", "title": "AI 工具留在本機", "items": [
+      ".dockerignore 排除 .claude/、scripts/e2e/、文件與金鑰",
+      "EC2 上不裝 Playwright 或測試套件；瀏覽器在本機跑，只透過網址連線" ] }
+  ]
+}

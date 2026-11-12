@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "9ea33cd3-f108-48d5-a466-e4910cb361dd",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/architecture-kol-tennis-system-20261112/candidate.json",
+  "output": "/home/liaozihcyuan/KOL_Tennis_Server/diagrams/architecture-kol-tennis-system-20261112/kol-tennis-system.html",
+  "specification": {
+    "sha256": "ef4f81b2ce9c9c06359ce80e2be98c91f7b802d7880c444f77295044acbff8f7",
+    "bytes": 4365
+  },
+  "artifact": {
+    "sha256": "c896ef80911467382522a0dbc3da9ba882fb2d7a0e2695cb616510eb29b40215",
+    "bytes": 847147
+  }
+}
