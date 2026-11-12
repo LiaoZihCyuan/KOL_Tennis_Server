@@ -8,6 +8,7 @@ AI_RULES.md
 scripts/e2e/
 e2e_artifacts/
 diagrams/
+graphify-out/
 
 # Docs and notes
 *.md

@@ -228,3 +228,5 @@ __marimo__/
 # Playwright screenshots / ad-hoc verification scripts
 e2e_artifacts/
 .claude/verification/
+# graphify knowledge graph output (regenerate with /graphify)
+graphify-out/
