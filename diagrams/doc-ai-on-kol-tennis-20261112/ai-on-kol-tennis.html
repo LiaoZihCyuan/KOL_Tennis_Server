@@ -62,6 +62,7 @@
   .tag.ok { background: var(--green-soft); color: var(--green); }
   figure { margin: 16px 0 22px; }
   figure iframe { width: 100%; height: 640px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--bg); display: block; }
+  figure img { width: 100%; height: auto; border: 1.5px solid var(--line); border-radius: 10px; display: block; }
   figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; display: flex; gap: 14px; flex-wrap: wrap; justify-content: space-between; }
   figcaption a { color: var(--accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
   ol.steps { list-style: none; counter-reset: s; margin: 14px 0 18px; padding: 0; max-width: 46em; }
@@ -119,7 +120,13 @@
     <li><a href="#result">4　結果</a></li>
     <li><a class="sub" href="#r-case">4.1　一次實際的修正</a></li>
     <li><a class="sub" href="#r-cost">4.2　代價</a></li>
-    <li><a href="#takeaways">5　帶得走的三件事</a></li>
+    <li><a href="#next">5　後續規劃</a></li>
+    <li><a class="sub" href="#n-diff">5.1　現在和之後的差別</a></li>
+    <li><a class="sub" href="#n-tier">5.2　按難度分流</a></li>
+    <li><a class="sub" href="#n-graph">5.3　用知識圖當地圖</a></li>
+    <li><a class="sub" href="#n-pre">5.4　回饋的前處理</a></li>
+    <li><a class="sub" href="#n-open">5.5　還沒想清楚的事</a></li>
+    <li><a href="#takeaways">6　帶得走的三件事</a></li>
   </ol>
 </nav>
 
@@ -136,6 +143,7 @@
     <p><b>任務</b>　讓 AI 幫我改這個網站，但不能弄壞線上資料，也不能靠我每次盯著它做完。</p>
     <p><b>做法</b>　AI 的改動要過四關：動手前先調查再提案、由另一個 agent 獨立驗證、兩道不靠 AI 自律的 hook、上線後只看不改的檢查。</p>
     <p><b>結果</b>　一次修正從部署到線上確認，我只需要回一次「好」、按一次同意；報告會寫出看了什麼、沒看什麼。代價是規則會誤擋，而且每一條都是踩過坑才加的。</p>
+    <p><b>接下來</b>　把這套流程搬到 AWS 上，讓使用者的回饋按難度分流：已經有解的直接回覆，單純的樣式調整直接處理，其他的才來問我。</p>
   </div>
 </section>
 
@@ -312,8 +320,69 @@
   </div>
 </section>
 
+<section id="next">
+  <h2><span class="no">5</span>後續規劃</h2>
+  <p>上面講的都是已經在跑的事。這一章是接下來想做的，還沒有實作，細節也還會變。</p>
+
+  <h3 id="n-diff"><span class="no">5.1</span>現在和之後的差別</h3>
+  <p>現在整套流程綁在我的電腦上：要處理回饋，我得先開機、開本機的開發環境、輸入 <code>/feedback</code>，不在電腦前就得用遠端控制連回來。規劃是把這些都搬到 AWS 上代管。</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th></th><th>現在</th><th>規劃中</th></tr>
+    <tr><td>AI 在哪裡跑</td><td>我的電腦</td><td>AWS 上一台專門的開發機，模型用 Bedrock</td></tr>
+    <tr><td>誰啟動</td><td>我輸入 <code>/feedback</code></td><td>使用者送出回饋就自動開始</td></tr>
+    <tr><td>誰決定怎麼處理</td><td>每一筆都問我</td><td>按難度分流，難的才問我</td></tr>
+    <tr><td>怎麼找到相關程式</td><td>一個一個檔案讀</td><td>先查知識圖，再讀圈出來的檔案</td></tr>
+    <tr><td>有問題怎麼找我</td><td>我要在電腦前，或開遠端控制</td><td>AI 透過 agent kit 主動回報給我</td></tr>
+  </table>
+  </div>
+  <p>有一條規則不變：<b>AI 工具還是不進正式站。</b>開發機和正式站是兩台不同的主機，AI 住在開發機上。</p>
+
+  <h3 id="n-tier"><span class="no">5.2</span>按難度分流</h3>
+  <p>「不用問我」不是全部都不問，而是看這一筆回饋有多難。</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th>情況</th><th>怎麼判斷</th><th>怎麼處理</th><th></th></tr>
+    <tr><td>已經有解</td><td>用 RAG 查歷史的 issue 和已結案的回饋，找得到答案</td><td>直接回報，不改程式</td><td><span class="tag ok">不問我</span></td></tr>
+    <tr><td>單純的樣式調整</td><td>只需要改 CSS</td><td>直接處理</td><td><span class="tag ok">不問我</span></td></tr>
+    <tr><td>其他</td><td>要改邏輯、動到資料，或 AI 不確定</td><td>透過 agent kit 回報給我，由我決定</td><td><span class="tag ask">問我</span></td></tr>
+  </table>
+  </div>
+  <p>這跟第三關的原則是同一個方向：出錯了影響小、收得回來的放手讓它做，其他的照舊要問。</p>
+
+  <h3 id="n-graph"><span class="no">5.3</span>用知識圖當地圖</h3>
+  <p>我用 graphify 把整個專案建成一張知識圖：程式碼、文件、已知問題、頁面模板，以及它們之間的關係。目前這張圖有 957 個節點、2050 條關係，自動分成 52 個群組。</p>
+  <figure>
+    <img src="graphify-graph.png" alt="graphify 產生的 KOL Tennis 知識圖，節點依群組上色，右側列出課程 API、排課看板前端、資料模型等群組" loading="lazy">
+    <figcaption><span>圖 3　KOL Tennis 的知識圖。每個點是一個函式、頁面、文件段落或已知問題，顏色是自動分出來的群組。</span></figcaption>
+  </figure>
+  <p>它的用處是回答「這件事牽涉到哪些地方」。舉一個圖上看得到的例子：已知問題「介面文字寫死『1 堂』」，同時連到課程 API、排課看板前端、學生入口、共用版面、續約五個群組。這種跨檔案的關聯，用搜尋關鍵字很難一次找齊。</p>
+  <p>對自動處理回饋來說，這張圖是地圖：AI 先在圖上找到相關的節點，再去讀那幾個檔案，不用每次從頭把專案讀一遍。</p>
+
+  <h3 id="n-pre"><span class="no">5.4</span>回饋的前處理</h3>
+  <p>使用者送出的回饋不必每一筆都原封不動交給最大的模型。先做便宜的處理，可以省下不少 token：</p>
+  <ul>
+    <li><b>合併重複。</b>同一個問題被不同人回報好幾次，只處理一次。</li>
+    <li><b>先分類。</b>是 bug、功能建議，還是操作上的誤會；分類本身就決定了 5.2 的分流。</li>
+    <li><b>查有沒有現成答案。</b>用 RAG 比對歷史的 issue 和已結案的回饋，有解就直接回覆。</li>
+    <li><b>圈出範圍。</b>用知識圖先找出相關的檔案，只把那幾個交給模型。</li>
+  </ul>
+  <p>實際能省多少還沒有量過，這裡先不寫數字。</p>
+
+  <h3 id="n-open"><span class="no">5.5</span>還沒想清楚的事</h3>
+  <p>前面四關講的都是「為什麼不能讓 AI 自己決定」，這一章卻是要把我從一部分流程裡拿掉。下面這些問題還沒有答案：</p>
+  <ul>
+    <li><b>回饋是別人輸入的文字。</b>現在有我擋在中間；自動化之後，一段寫得像指令的回饋會直接送到能改程式的 AI 面前。</li>
+    <li><b>誰來判斷難度。</b>如果是 AI 自己說「這只是 CSS」，那等於讓它自己決定要不要問我。比較可靠的做法可能是看實際改了哪些檔案，而不是看它怎麼說。</li>
+    <li><b>「直接處理」做到哪一步。</b>改完、驗證完就自動部署到正式站，還是停在部署前等我按一次同意？</li>
+    <li><b>原本的四關留下哪幾關。</b>獨立驗證和兩道 hook 不需要我在場，應該可以照舊；動手前的確認要怎麼對應到沒有人的流程，還要想。</li>
+    <li><b>改壞了怎麼辦。</b>誰會發現、怎麼退回、要不要通知送出回饋的人。</li>
+    <li><b>費用。</b>Bedrock 的花費，以及一筆回饋最多能花多少。</li>
+  </ul>
+</section>
+
 <section id="takeaways">
-  <h2><span class="no">5</span>帶得走的三件事</h2>
+  <h2><span class="no">6</span>帶得走的三件事</h2>
   <div class="cols3 takeaways">
     <div class="box"><p>寫的和驗的分開。只給驗證的人需求，不給結論。</p></div>
     <div class="box"><p>收不回來的動作用 hook 擋，其他會動到線上的用問的。</p></div>
@@ -323,7 +392,7 @@
   <p>專案很小，一台主機、一個資料庫。hook 和 verifier 是十月中一天之內補上去的，起因是我發現自己沒辦法每次都盯著它做完。規則是一條一條踩出來的，不是一開始設計好的。</p>
 </section>
 
-<footer class="doc">兩張圖用 Archify 產生，放在同一個 <code>diagrams/</code> 資料夾。</footer>
+<footer class="doc">圖 1、圖 2 用 Archify 產生，放在同一個 <code>diagrams/</code> 資料夾；圖 3 是 graphify 產生的知識圖截圖。</footer>
 </main>
 </div>
 
