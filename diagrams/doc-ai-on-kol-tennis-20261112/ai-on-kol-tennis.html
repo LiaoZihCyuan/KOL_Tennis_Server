@@ -56,6 +56,7 @@
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1.5px solid var(--line); vertical-align: top; line-height: 1.6; }
   th { font-size: 13.5px; color: var(--muted); }
   td:first-child { font-weight: 700; white-space: nowrap; }
+  #terms table { min-width: 0; } #terms h2 { border-bottom-width: 1.5px; border-bottom-color: var(--line); font-size: 21px; }
   .tag { display: inline-block; font-size: 13px; font-weight: 700; padding: 1px 10px; border-radius: 999px; white-space: nowrap; }
   .tag.deny { background: var(--red-soft); color: var(--red); }
   .tag.ask { background: var(--accent-soft); color: var(--accent); }
@@ -104,6 +105,7 @@
   <p class="toc-title">目錄</p>
   <ol>
     <li><a href="#summary">摘要</a></li>
+    <li><a href="#terms">先認識幾個詞</a></li>
     <li><a href="#situation">1　背景</a></li>
     <li><a class="sub" href="#s-project">1.1　這個專案</a></li>
     <li><a class="sub" href="#s-arch">1.2　系統長什麼樣子</a></li>
@@ -116,17 +118,17 @@
     <li><a class="sub" href="#a-gate3">3.4　第三關：碰正式站之前</a></li>
     <li><a class="sub" href="#a-gate4">3.5　第四關：上線之後</a></li>
     <li><a class="sub" href="#a-feedback">3.6　使用者回饋</a></li>
-    <li><a class="sub" href="#a-lessons">3.7　踩過的坑怎麼變成規則</a></li>
+    <li><a class="sub" href="#a-lessons">3.7　問題怎麼變成規則</a></li>
     <li><a href="#result">4　結果</a></li>
     <li><a class="sub" href="#r-case">4.1　一次實際的修正</a></li>
-    <li><a class="sub" href="#r-cost">4.2　代價</a></li>
+    <li><a class="sub" href="#r-cost">4.2　遇過的問題</a></li>
     <li><a href="#next">5　後續規劃</a></li>
     <li><a class="sub" href="#n-diff">5.1　現在和之後的差別</a></li>
     <li><a class="sub" href="#n-tier">5.2　按難度分流</a></li>
     <li><a class="sub" href="#n-graph">5.3　用知識圖當地圖</a></li>
     <li><a class="sub" href="#n-pre">5.4　回饋的前處理</a></li>
     <li><a class="sub" href="#n-open">5.5　還沒想清楚的事</a></li>
-    <li><a href="#takeaways">6　帶得走的三件事</a></li>
+    <li><a href="#takeaways">6　三個重點</a></li>
   </ol>
 </nav>
 
@@ -134,16 +136,32 @@
 <header class="doc">
   <p class="kicker">AI 讀書會 · 2026-11-12</p>
   <h1>把 AI 用在有正式站的專案：KOL Tennis</h1>
-  <p class="lead">這份文件講的不是 AI 怎麼寫程式，是它寫完之後，一個改動怎麼一關一關走到線上。</p>
+  <p class="lead">KOL Tennis 是一個已經上線、每天有人在用的網站。這份文件說明我怎麼讓 AI 幫忙改它，同時不把線上的資料弄壞。</p>
 </header>
 
 <section id="summary">
   <div class="summary">
-    <p><b>背景</b>　KOL Tennis 是教練每天在用的網球排課網站，只有一台主機、一個資料庫，上面是客戶的真實資料。</p>
-    <p><b>任務</b>　讓 AI 幫我改這個網站，但不能弄壞線上資料，也不能靠我每次盯著它做完。</p>
-    <p><b>做法</b>　AI 的改動要過四關：動手前先調查再提案、由另一個 agent 獨立驗證、兩道不靠 AI 自律的 hook、上線後只看不改的檢查。</p>
-    <p><b>結果</b>　一次修正從部署到線上確認，我只需要回一次「好」、按一次同意；報告會寫出看了什麼、沒看什麼。代價是規則會誤擋，而且每一條都是踩過坑才加的。</p>
-    <p><b>接下來</b>　把這套流程搬到 AWS 上，讓使用者的回饋按難度分流：已經有解的直接回覆，單純的樣式調整直接處理，其他的才來問我。</p>
+    <p><b>背景</b>　KOL Tennis 是教練每天在用的網球排課網站。它只有一台主機、一個資料庫，裡面是客戶的真實資料。</p>
+    <p><b>任務</b>　讓 AI 幫我改這個網站，但不能弄壞線上的資料，也不能要我每次都盯著它做完。</p>
+    <p><b>做法</b>　AI 的每個改動要通過四關：動手前先提案、由另一個 AI 檢查、自動檢查程式把關、上線後再看一次。</p>
+    <p><b>結果</b>　一次修正從部署到線上確認，我只回了一次「好」、按了一次同意。缺點是規則有時會擋錯，而且每一條都是出過問題才加上去的。</p>
+    <p><b>接下來</b>　把這套流程搬到 AWS 上，讓使用者的回饋按難度分開處理：簡單的 AI 直接處理，難的才來問我。</p>
+  </div>
+</section>
+
+<section id="terms">
+  <h2>先認識幾個詞</h2>
+  <p>後面會一直用到這幾個詞。</p>
+  <div class="tablewrap">
+  <table>
+    <tr><td>正式站</td><td>使用者實際在用的網站和資料庫。相對的是「本機」，也就是我自己電腦上測試用的網站。</td></tr>
+    <tr><td>部署</td><td>把改好的程式放到正式站上。</td></tr>
+    <tr><td>AI agent</td><td>能自己讀檔案、下指令、改程式的 AI。這個專案用的是 Claude Code。</td></tr>
+    <tr><td>commit</td><td>把一批改動存進版本紀錄，之後可以查、也可以退回。</td></tr>
+    <tr><td>hook</td><td>在固定時機自動執行的檢查程式。AI 沒辦法跳過它。</td></tr>
+    <tr><td>verifier</td><td>專門負責檢查的另一個 AI agent。它不寫程式，只檢查。</td></tr>
+    <tr><td>PASS／FAIL</td><td>檢查的結果：通過，或不通過。</td></tr>
+  </table>
   </div>
 </section>
 
@@ -151,32 +169,32 @@
   <h2><span class="no">1</span>背景<span class="star">SITUATION</span></h2>
 
   <h3 id="s-project"><span class="no">1.1</span>這個專案</h3>
-  <p>KOL Tennis 是一個網球課程排課系統。教練和小編每天用它排課、點名、處理請假和續約，學生用它看自己的課表和剩餘堂數。</p>
-  <p>技術上很單純：Flask 加 PostgreSQL，用 Docker Compose 部署在一台 AWS EC2 上。</p>
+  <p>KOL Tennis 是網球課程的排課系統。教練和小編每天用它排課、點名、處理請假和續約。學生用它看自己的課表和剩下的堂數。</p>
+  <p>網站用 Flask（Python 的網頁框架）和 PostgreSQL（資料庫）寫成，放在一台 AWS 的雲端主機上。</p>
 
   <h3 id="s-arch"><span class="no">1.2</span>系統長什麼樣子</h3>
-  <p>圖的上半部是正式站：只有 nginx 對外，後面是 Flask 和 PostgreSQL。資料庫每天備份，每次部署前再備份一次。</p>
-  <p>下半部是我的電腦：Claude Code、hook、驗證用的瀏覽器都在這裡，<code>.dockerignore</code> 把它們排除在 image 之外。正式站只跑網站本身，AI 不住在上面。</p>
+  <p>圖 1 的上半部是正式站。使用者連到 nginx，nginx 再把請求轉給網站程式和資料庫。資料庫每天自動備份一次，每次部署前還會再備份一次。</p>
+  <p>下半部是我的電腦。AI、hook、檢查用的瀏覽器都在這裡，不會被放到正式站上。</p>
   <figure>
     <iframe src="../architecture-kol-tennis-system-20261112/kol-tennis-system.html" title="KOL Tennis 系統架構圖" loading="lazy"></iframe>
-    <figcaption><span>圖 1　系統架構。圖上每個方塊都點得到對應的設定檔。</span><a href="../architecture-kol-tennis-system-20261112/kol-tennis-system.html" target="_blank" rel="noopener">開新分頁看大圖 ↗</a></figcaption>
+    <figcaption><span>圖 1　系統架構。點圖上的方塊可以看到對應的設定檔。</span><a href="../architecture-kol-tennis-system-20261112/kol-tennis-system.html" target="_blank" rel="noopener">開新分頁看大圖 ↗</a></figcaption>
   </figure>
 
   <h3 id="s-hard"><span class="no">1.3</span>難在哪裡</h3>
   <ul>
-    <li><b>沒有標準答案可以比對。</b>網站對不對，只能實際操作、看畫面。畫面跑版、按鈕沒反應，測試不一定抓得到。</li>
-    <li><b>沒有緩衝。</b>只有一台主機、一個資料庫，沒有介於本機和正式站之間的測試環境。</li>
-    <li><b>資料掉了無法交代。</b>正式站上是教練每天輸入的真實資料，而且跟我本機的資料不一樣。</li>
+    <li><b>沒有標準答案。</b>網站做得對不對，要實際操作、看畫面才知道。版面跑掉、按鈕沒反應這類問題，程式測試不一定抓得到。</li>
+    <li><b>沒有中間的測試環境。</b>只有我的電腦和正式站，中間沒有緩衝。</li>
+    <li><b>資料不能掉。</b>正式站上是教練每天輸入的真實資料，而且跟我電腦上的資料不一樣。</li>
   </ul>
 </section>
 
 <section id="task">
   <h2><span class="no">2</span>任務<span class="star">TASK</span></h2>
-  <p>我想讓 AI 幫我改這個網站，從查問題、寫程式到部署。但有三件事必須成立：</p>
+  <p>我想讓 AI 幫我改這個網站，包括查問題、寫程式和部署。但要同時做到三件事：</p>
   <ul>
-    <li><b>AI 說「做完了」，就要是真的做完了。</b>最常見的狀況不是它寫錯，而是它以為自己寫對了。</li>
-    <li><b>線上資料不能被動到。</b>不管 AI 多有把握，收不回來的動作不能由它自己決定。</li>
-    <li><b>不能靠我盯。</b>我沒辦法每次都看著它做完每一步，所以規則不能只寫在提示裡，要有機制去擋。</li>
+    <li><b>AI 說「做完了」，就要真的做完。</b>常見的狀況不是它寫錯，而是它以為自己寫對了。</li>
+    <li><b>線上的資料不能被動到。</b>做了就收不回來的動作，不能讓 AI 自己決定。</li>
+    <li><b>不能靠我盯著。</b>我沒辦法每次都看它做完每一步。所以規則不能只是寫給 AI 看，還要有程式自動把關。</li>
   </ul>
 </section>
 
@@ -184,215 +202,227 @@
   <h2><span class="no">3</span>做法<span class="star">ACTION</span></h2>
 
   <h3 id="a-flow"><span class="no">3.1</span>整個流程</h3>
-  <p>先看綠色主線，從左到右：提需求、AI 先調查再提案、我說可以、實作、驗證、commit、部署、上線後檢查。紅色兩格是 hook，不靠 AI 記得。</p>
-  <p>四關分別是：動手前的確認、獨立驗證、部署前的詢問、上線後的唯讀檢查。左下角是第二個入口（使用者回饋），最右邊是回饋的結案，在 3.6 說明。</p>
+  <p>圖 2 是整個流程。綠色的線是主要流程，由左到右是：提出需求、AI 調查後提案、我同意、AI 實作、檢查、commit、部署、上線後再檢查。紅色的兩格是 hook。</p>
+  <p>流程裡有四關：動手前的確認、獨立的檢查、部署前的詢問、上線後的檢查。3.2 到 3.5 各說明一關。</p>
+  <p>圖的左下角是另一個入口，也就是使用者的回饋。最右邊是回饋的結案。這兩段在 3.6 說明。</p>
   <figure>
     <iframe src="../workflow-ai-change-to-prod-20261112/ai-change-to-prod.html" title="AI 的改動怎麼走到正式站 流程圖" loading="lazy"></iframe>
     <figcaption><span>圖 2　AI 的改動怎麼走到正式站。</span><a href="../workflow-ai-change-to-prod-20261112/ai-change-to-prod.html" target="_blank" rel="noopener">開新分頁看大圖 ↗</a></figcaption>
   </figure>
 
   <h3 id="a-gate1"><span class="no">3.2</span>第一關：動手前，先查清楚再提案</h3>
-  <p>改任何程式碼或設定之前，AI 都要走這一關。規則寫在一個叫 <code>grill-me</code> 的 skill 裡：</p>
+  <p>AI 要改任何程式或設定之前，都要先過這一關。規則如下：</p>
   <ul>
-    <li>AI 先自己調查：讀程式碼、在本機重現、看資料和 git 歷史。查得到的事實不問我；要翻很多檔案時，派另一個 agent 去查。</li>
-    <li>一次給我完整的提案：原因、要改哪些檔案、怎麼驗證。</li>
-    <li>只有真的該我決定的事才問，例如業務規則和取捨，而且每一題都附上它的建議答案。</li>
-    <li>我沒提的功能、重構、「順便」的修改都不做；想到了就寫在提案裡，由我決定。</li>
-    <li>我說「可以」才開始。實作中要偏離計畫，就停下來重新確認。</li>
+    <li><b>先自己查。</b>AI 先讀程式、在本機重現問題、看資料和修改紀錄。查得到的事不來問我。要看很多檔案時，它會另外派一個 AI agent 去查。</li>
+    <li><b>一次講完。</b>AI 一次給我完整的提案：原因是什麼、要改哪些檔案、改完怎麼檢查。</li>
+    <li><b>只問該問的。</b>只有該由我決定的事才問我，例如業務上的規則，或兩種做法各有好壞的時候。每一題都要附上它建議的答案。</li>
+    <li><b>沒提到的不做。</b>我沒要求的功能、整理程式、「順便」的修改，都不做。AI 想到了可以寫在提案裡，由我決定。</li>
+    <li><b>我同意才開始。</b>我說「可以」之後才動手。做到一半發現要改變做法，就停下來再問一次。</li>
   </ul>
-  <p>一開始的規則是一次問一題，結果簡單的事也要來回好幾輪，後來才改成現在這樣。附建議答案是關鍵：我大部分時候只需要說好或不好。下面是實際的對話：</p>
+  <p>最早的規則是一次問一題。結果簡單的事也要來回問好幾次，後來才改成現在這樣。因為每一題都附了建議答案，我通常只要回答好或不好。下面是一段實際的對話：</p>
   <div class="qa">
-    <p><b>問</b>每一次查事實都派 sub-agent，還是只有比較大的查詢才派？</p>
-    <p><b>建議</b>要翻好幾個檔案的才派；一兩個指令查得到的直接查。</p>
+    <p><b>AI 問</b>每次查資料都另外派一個 AI agent，還是比較大的查詢才派？</p>
+    <p><b>AI 建議</b>要看好幾個檔案的才派；一兩個指令就查得到的，直接查。</p>
     <p><b>我</b>照建議。</p>
   </div>
 
-  <h3 id="a-gate2"><span class="no">3.3</span>第二關：交付前，驗證的人不能是寫的人</h3>
-  <p>網站沒有標準答案可以比對，所以我把「寫」和「驗」拆成兩個角色。</p>
+  <h3 id="a-gate2"><span class="no">3.3</span>第二關：交付前，檢查的不能是寫的</h3>
+  <p>AI 自己寫、自己檢查，很容易覺得沒問題（實際的例子見 4.2）。所以我把「寫」和「檢查」分給兩個不同的 AI。</p>
   <div class="cols">
     <div class="box">
-      <h4>實作的 AI</h4>
+      <h4>負責寫的 AI</h4>
       <ul>
-        <li>寫程式，自己先測到會過</li>
-        <li>不准宣稱「完成」</li>
-        <li>不准自己記錄 PASS</li>
-        <li>PASS 之前不准 commit</li>
+        <li>寫程式，自己先測到會動</li>
+        <li>不能說「完成」</li>
+        <li>不能自己記錄 PASS</li>
+        <li>PASS 之前不能 commit</li>
       </ul>
     </div>
     <div class="box green">
-      <h4>verifier agent</h4>
+      <h4>負責檢查的 AI（verifier）</h4>
       <ul>
-        <li>只拿到需求和驗收條件，拿不到「我覺得好了」</li>
-        <li>自己讀 diff，開瀏覽器實際操作、看截圖</li>
-        <li>桌機和手機、三種角色都跑</li>
-        <li>FAIL 就退回；修完要開一個新的 verifier 重驗</li>
+        <li>只會拿到需求和驗收條件，不會拿到「我覺得好了」這種結論</li>
+        <li>自己看改了什麼，開瀏覽器實際操作，再看截圖</li>
+        <li>電腦版和手機版都看，管理者、教練、學生三種帳號都試</li>
+        <li>不通過就退回。改完之後要換一個新的 verifier 重新檢查</li>
       </ul>
     </div>
   </div>
-  <p>verifier 的設定檔第一段話是：另一個 agent 改了程式而且相信它能動，你的工作是查出這是不是真的，你不站在它那邊。</p>
-  <p>PASS 是綁在改動內容的指紋上，不是綁在「這個任務」上。驗完之後再改任何一個網站檔案，PASS 就失效，要重驗。</p>
+  <p>verifier 的設定一開頭就寫著：另一個 AI 改了程式，而且相信它能用。你的工作是查出這是不是真的。你不是站在它那邊的。</p>
+  <p>PASS 是跟著「改動的內容」走的。檢查通過之後，只要再改任何一個網站的檔案，原本的 PASS 就不算，要重新檢查。</p>
 
   <h3 id="a-gate3"><span class="no">3.4</span>第三關：碰正式站之前，兩道 hook</h3>
-  <p>hook 是 Claude Code 在特定時機自動執行的腳本，AI 繞不過去。這裡的原則是：出錯了收不回來的用擋的，其他會動到線上的用問的。</p>
+  <p>hook 是自動執行的檢查程式，AI 跳不過去。這一關的原則是：做了就收不回來的動作直接擋掉，其他會動到正式站的動作要先問我。</p>
   <div class="tablewrap">
   <table>
-    <tr><th>機制</th><th>什麼時候跑</th><th>做什麼</th><th></th></tr>
-    <tr><td>Stop hook</td><td>AI 想結束回合</td><td>有還沒驗證的改動，就擋下來要它先去驗證</td><td><span class="tag ask">擋一次</span></td></tr>
-    <tr><td rowspan="2">guard hook</td><td rowspan="2">每一個指令執行前</td><td>刪資料表、刪 volume、清空資料、刪備份</td><td><span class="tag deny">一律拒絕</span></td></tr>
-    <tr><td style="font-weight:400;white-space:normal">部署、migration、寫入 SQL、重啟容器</td><td><span class="tag ask">強制問我</span></td></tr>
-    <tr><td>部署腳本</td><td>部署的第一步</td><td>先備份資料庫，備份檔是空的或壞的就中止</td><td><span class="tag ok">自動</span></td></tr>
+    <tr><th>機制</th><th>什麼時候執行</th><th>做什麼</th><th></th></tr>
+    <tr><td>Stop hook</td><td>AI 想結束這次工作時</td><td>如果有改動還沒檢查過，就擋下來，要它先去檢查</td><td><span class="tag ask">擋一次</span></td></tr>
+    <tr><td rowspan="2">guard hook</td><td rowspan="2">AI 每次下指令之前</td><td>刪資料表、刪資料庫的儲存空間、清空資料、刪備份</td><td><span class="tag deny">一律拒絕</span></td></tr>
+    <tr><td style="font-weight:400;white-space:normal">部署、改資料庫的結構、寫入資料庫、重新啟動網站</td><td><span class="tag ask">一定先問我</span></td></tr>
+    <tr><td>部署程式</td><td>部署的第一步</td><td>先備份資料庫。備份檔是空的或壞的，就停止部署</td><td><span class="tag ok">自動</span></td></tr>
   </table>
   </div>
-  <p>「一律拒絕」的意思是不管 AI 怎麼說、我怎麼說都不執行，真的要做，我得自己下指令。</p>
+  <p>「一律拒絕」是指不管 AI 或我怎麼說，hook 都不會放行。真的要做，我得自己下指令。</p>
 
-  <h3 id="a-gate4"><span class="no">3.5</span>第四關：上線之後，再看一次但只看不改</h3>
-  <p>本機驗過不代表線上沒問題，因為正式站的資料跟本機不一樣。所以部署完還有一次檢查，但規則反過來：verifier 只能看。</p>
+  <h3 id="a-gate4"><span class="no">3.5</span>第四關：上線之後，再看一次但不能改</h3>
+  <p>在本機檢查通過，不代表正式站沒問題，因為兩邊的資料不一樣。所以部署完還要再檢查一次。這一次的規則相反：verifier 只能看，不能改。</p>
   <ul>
-    <li>瀏覽器在我的電腦上跑，透過網址連線，主機上不裝任何東西。</li>
-    <li>所有不是 GET 的請求一律擋掉，只放行一次登入；確認視窗自動按取消。</li>
-    <li>排課看板只看本週，不切換週次。</li>
-    <li>需要寫入才能驗的項目，在報告裡列為「未涵蓋」，以本機的驗證結果為準。</li>
+    <li>瀏覽器在我的電腦上執行，透過網址連到正式站。正式站的主機上不安裝任何東西。</li>
+    <li>除了一次登入以外，所有會送出資料的動作都被擋掉。跳出確認視窗時，一律按取消。</li>
+    <li>排課看板只看這一週，不切換到其他週。</li>
+    <li>要寫入資料才能檢查的項目，在報告裡列為「沒有檢查到」，以本機的檢查結果為準。</li>
   </ul>
   <div class="box accent" style="max-width:42em">
     <h4>為什麼連「看」都要限制</h4>
-    <p>這個網站打開新的一週，伺服器就會照固定課表產生那一週的課。讀取本身會寫入資料，所以唯讀檢查只准看已經產生過的本週。這是踩過坑才知道的（見 4.2）。</p>
+    <p>在這個網站上，只要有人打開新的一週，系統就會依照固定課表，自動建立那一週的課。也就是說，光是「看」就會寫入資料。所以上線後的檢查只能看已經建立過的這一週。這是出過問題才發現的（見 4.2）。</p>
   </div>
 
-  <h3 id="a-feedback"><span class="no">3.6</span>使用者回饋：從進來到結案</h3>
-  <p>除了我自己提需求，還有第二個入口。小編和教練可以在網站側邊欄送出意見回饋，內容存在正式站的資料庫裡；網站上只能送出，不能查看。</p>
+  <h3 id="a-feedback"><span class="no">3.6</span>使用者回饋：從收到到結案</h3>
+  <p>除了我自己提需求，還有第二個入口。小編和教練可以在網站上送出意見回饋。回饋存在正式站的資料庫裡，網站上只能送出，不能查看。</p>
   <ul>
-    <li><b>讀取。</b>我輸入 <code>/feedback</code>，AI 去正式站把還沒解決的回饋讀出來，只讀不寫。</li>
-    <li><b>調查與提案。</b>每一筆先自己查清楚，再一次告訴我：這是 bug、功能建議、操作上的誤會還是重複，原因是什麼，建議怎麼處理。之後走的是同一條主線和同樣的四關。</li>
-    <li><b>結案。</b>有改程式的，要等部署到正式站之後才結案，不是本機修好就算。結案是對正式站的寫入，所以每次都要我同意，而且先備份、一次只更新指定的那一筆、寫明怎麼解決的。</li>
+    <li><b>讀取。</b>我輸入 <code>/feedback</code>，AI 就去正式站讀出還沒處理的回饋。這一步只讀，不寫入。</li>
+    <li><b>調查和提案。</b>AI 先把每一筆查清楚，再一次告訴我：這是程式的問題、功能建議、操作上的誤會，還是重複的回饋；原因是什麼；建議怎麼處理。之後走的是同一個流程、同樣的四關。</li>
+    <li><b>結案。</b>有改程式的回饋，要等部署到正式站之後才能結案，不是在本機改好就算。結案會寫入正式站的資料庫，所以每次都要我同意。做法是先備份，一次只更新一筆，並寫下是怎麼解決的。</li>
   </ul>
-  <p>回饋的內容是別人輸入的文字，AI 只把它當成問題描述。裡面如果出現像指令的句子，一律不照做，並且告訴我。</p>
+  <p>回饋是別人輸入的文字。AI 只把它當成「問題的描述」。如果裡面有看起來像指令的句子，AI 不會照做，而且會告訴我。</p>
 
-  <h3 id="a-lessons"><span class="no">3.7</span>踩過的坑怎麼變成規則</h3>
-  <p>上面的規則不是一開始設計好的。AI 踩到坑、修好之後，當下就把它寫進 <code>.claude/lessons-learned.md</code>，寫三件事：狀況、原因、下次怎麼做。這個檔被 <code>CLAUDE.md</code> 匯入，所以下一次對話一開始 AI 就讀到了，不用我提醒。</p>
-  <div class="loop" role="img" aria-label="循環：踩到坑、修好當下就寫、CLAUDE.md 匯入、下次開工自動讀到、持續整理，然後回到下一次踩到坑">
-    <div class="step"><b>踩到坑</b>指令失敗、被擋、猜錯</div><span class="arr">→</span>
-    <div class="step"><b>修好當下就寫</b>狀況、原因、下次做法</div><span class="arr">→</span>
-    <div class="step"><b>CLAUDE.md 匯入</b>不用另外叫它去讀</div><span class="arr">→</span>
-    <div class="step"><b>下次開工自動讀到</b>同樣的坑不再踩</div><span class="arr">→</span>
-    <div class="step"><b>持續整理</b>同類更新、過時刪除</div>
+  <h3 id="a-lessons"><span class="no">3.7</span>問題怎麼變成規則</h3>
+  <p>上面這些規則不是一開始就想好的。每次 AI 遇到問題、修好之後，就馬上把它記在一個檔案裡（<code>.claude/lessons-learned.md</code>）。每一條寫三件事：發生了什麼、原因、下次怎麼做。</p>
+  <p>AI 每次開始工作都會先讀專案的說明檔 <code>CLAUDE.md</code>，而這個說明檔會把上面那個檔案一起帶進來。所以下一次工作時，AI 一開始就知道這些事，不用我提醒。</p>
+  <div class="loop" role="img" aria-label="循環：遇到問題、修好馬上記下來、說明檔帶進來、下次開始工作就讀到、持續整理，然後回到下一次遇到問題">
+    <div class="step"><b>遇到問題</b>指令失敗、被擋、猜錯</div><span class="arr">→</span>
+    <div class="step"><b>修好馬上記下來</b>發生什麼、原因、做法</div><span class="arr">→</span>
+    <div class="step"><b>說明檔帶進來</b>不用另外叫 AI 去讀</div><span class="arr">→</span>
+    <div class="step"><b>下次一開始就讀到</b>同樣的問題不再發生</div><span class="arr">→</span>
+    <div class="step"><b>持續整理</b>同類的更新、過時的刪除</div>
   </div>
-  <div class="loop-back"><span>下一次踩到坑，再走一圈</span></div>
-  <p>同類的坑更新原本那一條，環境變了、已經不成立的就刪掉，所以它不會越長越亂。這個檔由 AI 自己維護，目前二十多條。</p>
+  <div class="loop-back"><span>下一次遇到問題，再走一圈</span></div>
+  <p>同一類的問題會更新原本那一條。環境改變之後已經不成立的會刪掉。所以這個檔案不會越來越亂。它由 AI 自己維護，現在有二十多條。</p>
 </section>
 
 <section id="result">
   <h2><span class="no">4</span>結果<span class="star">RESULT</span></h2>
 
   <h3 id="r-case"><span class="no">4.1</span>一次實際的修正</h3>
-  <p>問題是「兩個人同時打開新的一週，課程會重複產生」。下面是它從修好到線上確認的過程：</p>
+  <p>問題是：兩個人同時打開新的一週時，課程會被重複建立。下面是這個修正從完成到線上確認的過程。</p>
   <ol class="steps">
-    <li><span>修正完成，本機驗證 PASS，commit。</span><span class="who ai">AI＋verifier</span></li>
-    <li><span>我問「推到正式版了嗎」。AI 比對本機、遠端、正式站三邊的版本：還沒，並說明部署會做什麼。</span><span class="who me">我：「好」</span></li>
-    <li><span>部署：先備份 → 重建容器 → 這次沒有 migration → 健康檢查通過。</span><span class="who hook">hook 問我一次</span></li>
-    <li><span>verifier 對正式站做唯讀檢查，桌機、手機各一次，前後約兩分鐘。</span><span class="who ai">verifier</span></li>
-    <li><span>報告：本週一百多堂課，重複 0 組、錯誤 0、被擋下的寫入 0。</span><span class="who ai">PASS</span></li>
+    <li><span>AI 完成修正。verifier 在本機檢查，結果是 PASS。AI commit。</span><span class="who ai">AI＋verifier</span></li>
+    <li><span>我問「推到正式站了嗎」。AI 比對我的電腦、程式碼倉庫、正式站三邊的版本，回答還沒有，並說明部署會做哪些事。</span><span class="who me">我：「好」</span></li>
+    <li><span>部署：先備份，再重新建立網站，然後確認網站有回應。這次不需要改資料庫的結構。</span><span class="who hook">hook 問我一次</span></li>
+    <li><span>verifier 檢查正式站，只看不改。電腦版和手機版各檢查一次，前後大約兩分鐘。</span><span class="who ai">verifier</span></li>
+    <li><span>報告：這一週有一百多堂課，重複的 0 組，錯誤 0 個，被擋下的寫入 0 次。</span><span class="who ai">PASS</span></li>
   </ol>
-  <p>整個過程我實際做的事，是回了一次「好」，加上 hook 跳出來時按一次同意。比較值得看的是報告裡的三個數字：</p>
+  <p>整個過程中，我只回了一次「好」，並在 hook 詢問時按了一次同意。報告裡有三個數字：</p>
   <div class="cols3">
-    <div><div class="num">29/30</div><p>自動檢查通過。沒過的那一項是 verifier 自己把門檻寫錯，它寫在報告裡，沒有為了好看重跑一次。</p></div>
-    <div><div class="num">0</div><p>在正式站上執行的寫入。</p></div>
-    <div><div class="num">3</div><p>報告列出的「沒驗證到」項目：併發問題本身、其他週、教練和學生角色。</p></div>
+    <div><div class="num">29/30</div><p>自動檢查通過的項目。沒通過的那一項，是 verifier 自己把標準設錯了。它把這件事寫進報告，沒有為了讓結果好看而重跑。</p></div>
+    <div><div class="num">0</div><p>在正式站上寫入資料的次數。</p></div>
+    <div><div class="num">3</div><p>報告裡列出「沒有檢查到」的項目：同時操作的情況、其他週、教練和學生的帳號。</p></div>
   </div>
-  <p>我要的就是這種報告：講清楚看了什麼、沒看什麼，而不是一句「都過了」。</p>
+  <p>這樣的報告比一句「都通過了」有用，因為它說明了看過什麼、沒看過什麼。</p>
 
-  <h3 id="r-cost"><span class="no">4.2</span>代價：三個真的踩過的坑</h3>
-  <div class="cols3">
+  <h3 id="r-cost"><span class="no">4.2</span>遇過的問題</h3>
+  <p>下面四個問題都實際發生過。前兩個跟 AI 做事的方式有關，也是第一關和第二關存在的原因。後兩個是這個專案和這套規則才有的問題。</p>
+  <div class="cols">
     <div class="box">
-      <h4>順手刪掉 5 條 CSS</h4>
-      <p>AI 用「起點到終點」整段替換，把夾在中間的樣式一起刪了，一個橫幅蓋住晚上九點的課。</p>
-      <p class="after">程式沒壞、測試會過，第三次驗證看截圖才抓到。</p>
+      <h4>改到不該改的地方</h4>
+      <p>我請 AI 修手機版的樣式。它把一整段程式換掉，連夾在中間、跟這次無關的 5 條樣式也刪了。結果一個橫幅蓋住了晚上九點的課。</p>
+      <p>程式沒有出錯，測試也會通過。第三次檢查時看了截圖才發現。AI 也會「順便」改我沒有要求的東西。</p>
+      <p class="after">對應的規則：沒提到的不做（第一關）；要換掉一整段之前，先確認會被換掉的內容。</p>
     </div>
     <div class="box">
-      <h4>讀取就是寫入</h4>
-      <p>verifier 測試時切到新的一週，系統一次建了一百多筆課程和預約，灌進本機資料庫。</p>
-      <p class="after">我自己都不知道有這個行為。之後多了一條規則：只查已經產生過的週。</p>
+      <h4>沒做好就說做完了</h4>
+      <p>AI 改完之後，只用指令測了後端的 API，沒有打開畫面看，就回報「完成」。寫的和檢查的是同一個 AI，等於自己檢查自己。</p>
+      <p>我實際一用就發現問題，退回去請它再改。這樣來來回回了很多次。</p>
+      <p class="after">對應的規則：由另一個 AI 開瀏覽器實際操作、看畫面，通過了才算完成（第二關）。</p>
     </div>
     <div class="box">
-      <h4>hook 會誤擋</h4>
-      <p>guard hook 只看指令裡有沒有關鍵字，分不出那是真的要對正式站執行，還是只是檔名或一段文字。</p>
-      <p class="after">我選擇不放寬：誤擋只是多下一次指令，漏擋就收不回來。</p>
+      <h4>光是「看」就會寫入資料</h4>
+      <p>verifier 在本機檢查時切換到新的一週。系統一次建立了一百多筆課程和預約，全部寫進本機的資料庫。</p>
+      <p>在這之前，我自己也不知道網站會這樣。</p>
+      <p class="after">對應的規則：檢查時只看已經建立過的週（第四關）。</p>
+    </div>
+    <div class="box">
+      <h4>hook 會擋錯</h4>
+      <p>guard hook 只檢查指令裡有沒有特定的字。它分不出這個指令是真的要對正式站執行，還是剛好提到某個檔名或一段文字。</p>
+      <p>所以沒有危險的指令有時也會被擋下來。</p>
+      <p class="after">我決定不放寬。擋錯了只是多下一次指令；漏掉了，資料就救不回來。</p>
     </div>
   </div>
 </section>
 
 <section id="next">
   <h2><span class="no">5</span>後續規劃</h2>
-  <p>上面講的都是已經在跑的事。這一章是接下來想做的，還沒有實作，細節也還會變。</p>
+  <p>前面寫的都是已經在用的做法。這一章是接下來想做的事，還沒有開始做，細節也可能會改。</p>
 
   <h3 id="n-diff"><span class="no">5.1</span>現在和之後的差別</h3>
-  <p>現在整套流程綁在我的電腦上：要處理回饋，我得先開機、開本機的開發環境、輸入 <code>/feedback</code>，不在電腦前就得用遠端控制連回來。規劃是把這些都搬到 AWS 上代管。</p>
+  <p>現在整套流程都在我的電腦上。要處理回饋，我得先開電腦、啟動本機的網站，再輸入 <code>/feedback</code>。人不在電腦前，就要從遠端連回來操作。之後想把這些都搬到 AWS 上，由 AWS 的服務代管。</p>
   <div class="tablewrap">
   <table>
     <tr><th></th><th>現在</th><th>規劃中</th></tr>
-    <tr><td>AI 在哪裡跑</td><td>我的電腦</td><td>AWS 上一台專門的開發機，模型用 Bedrock</td></tr>
-    <tr><td>誰啟動</td><td>我輸入 <code>/feedback</code></td><td>使用者送出回饋就自動開始</td></tr>
-    <tr><td>誰決定怎麼處理</td><td>每一筆都問我</td><td>按難度分流，難的才問我</td></tr>
-    <tr><td>怎麼找到相關程式</td><td>一個一個檔案讀</td><td>先查知識圖，再讀圈出來的檔案</td></tr>
-    <tr><td>有問題怎麼找我</td><td>我要在電腦前，或開遠端控制</td><td>AI 透過 agent kit 主動回報給我</td></tr>
+    <tr><td>AI 在哪裡執行</td><td>我的電腦</td><td>AWS 上一台專門用來開發的主機。AI 模型用 AWS 的 Bedrock 服務</td></tr>
+    <tr><td>誰來啟動</td><td>我輸入 <code>/feedback</code></td><td>使用者送出回饋後自動開始</td></tr>
+    <tr><td>誰決定怎麼處理</td><td>每一筆都問我</td><td>按難度分開，難的才問我</td></tr>
+    <tr><td>怎麼找到相關的程式</td><td>一個檔案一個檔案讀</td><td>先查知識圖，再讀找到的那幾個檔案</td></tr>
+    <tr><td>有問題怎麼通知我</td><td>我要在電腦前，或從遠端連回來</td><td>AI 透過 agent kit 主動通知我</td></tr>
   </table>
   </div>
-  <p>有一條規則不變：<b>AI 工具還是不進正式站。</b>開發機和正式站是兩台不同的主機，AI 住在開發機上。</p>
+  <p>有一條規則不會變：<b>AI 工具不放到正式站上。</b>開發用的主機和正式站是兩台不同的主機，AI 只在開發用的那一台上。</p>
 
   <h3 id="n-tier"><span class="no">5.2</span>按難度分流</h3>
-  <p>「不用問我」不是全部都不問，而是看這一筆回饋有多難。</p>
+  <p>「不用問我」不是所有事都不問，而是看這一筆回饋有多難處理。</p>
   <div class="tablewrap">
   <table>
     <tr><th>情況</th><th>怎麼判斷</th><th>怎麼處理</th><th></th></tr>
-    <tr><td>已經有解</td><td>用 RAG 查歷史的 issue 和已結案的回饋，找得到答案</td><td>直接回報，不改程式</td><td><span class="tag ok">不問我</span></td></tr>
-    <tr><td>單純的樣式調整</td><td>只需要改 CSS</td><td>直接處理</td><td><span class="tag ok">不問我</span></td></tr>
-    <tr><td>其他</td><td>要改邏輯、動到資料，或 AI 不確定</td><td>透過 agent kit 回報給我，由我決定</td><td><span class="tag ask">問我</span></td></tr>
+    <tr><td>已經有答案</td><td>搜尋過去的問題紀錄和已經結案的回饋，找得到答案（這種做法叫 RAG）</td><td>直接回覆，不改程式</td><td><span class="tag ok">不問我</span></td></tr>
+    <tr><td>只是調整樣式</td><td>只需要改 CSS</td><td>直接處理</td><td><span class="tag ok">不問我</span></td></tr>
+    <tr><td>其他</td><td>要改程式的邏輯、會動到資料，或 AI 自己不確定</td><td>透過 agent kit 通知我，由我決定</td><td><span class="tag ask">問我</span></td></tr>
   </table>
   </div>
-  <p>這跟第三關的原則是同一個方向：出錯了影響小、收得回來的放手讓它做，其他的照舊要問。</p>
+  <p>這跟第三關的原則一樣：出錯了影響不大、可以改回來的，讓 AI 直接做；其他的還是要先問。</p>
 
   <h3 id="n-graph"><span class="no">5.3</span>用知識圖當地圖</h3>
-  <p>我用 graphify 把整個專案建成一張知識圖：程式碼、文件、已知問題、頁面模板，以及它們之間的關係。目前這張圖有 957 個節點、2050 條關係，自動分成 52 個群組。</p>
+  <p>我用 graphify 這個工具，把整個專案整理成一張知識圖。圖裡有程式、文件、已知的問題和網頁，以及它們之間的關係。現在這張圖有 957 個點、2050 條連線，自動分成 52 群。</p>
   <figure>
-    <img src="graphify-graph.png" alt="graphify 產生的 KOL Tennis 知識圖，節點依群組上色，右側列出課程 API、排課看板前端、資料模型等群組" loading="lazy">
-    <figcaption><span>圖 3　KOL Tennis 的知識圖。每個點是一個函式、頁面、文件段落或已知問題，顏色是自動分出來的群組。</span></figcaption>
+    <img src="graphify-graph.png" alt="graphify 產生的 KOL Tennis 知識圖，每個點依所屬的群上色，右側列出課程 API、排課看板前端、資料模型等群的名稱" loading="lazy">
+    <figcaption><span>圖 3　KOL Tennis 的知識圖。每個點是一個函式、一個網頁、一段文件或一個已知的問題。顏色代表自動分出來的群。</span></figcaption>
   </figure>
-  <p>它的用處是回答「這件事牽涉到哪些地方」。舉一個圖上看得到的例子：已知問題「介面文字寫死『1 堂』」，同時連到課程 API、排課看板前端、學生入口、共用版面、續約五個群組。這種跨檔案的關聯，用搜尋關鍵字很難一次找齊。</p>
-  <p>對自動處理回饋來說，這張圖是地圖：AI 先在圖上找到相關的節點，再去讀那幾個檔案，不用每次從頭把專案讀一遍。</p>
+  <p>這張圖可以回答「這件事跟哪些地方有關」。例如有一個已知的問題是「畫面上的文字寫死成『1 堂』」。在圖上可以看到，它同時連到課程的後端、排課看板、學生頁面、共用版面和續約這五群。用關鍵字搜尋，很難一次把這些地方都找出來。</p>
+  <p>對自動處理回饋來說，這張圖就像地圖。AI 先在圖上找到相關的點，再去讀那幾個檔案，不用每次都把整個專案重新讀一遍。</p>
 
   <h3 id="n-pre"><span class="no">5.4</span>回饋的前處理</h3>
-  <p>使用者送出的回饋不必每一筆都原封不動交給最大的模型。先做便宜的處理，可以省下不少 token：</p>
+  <p>AI 的用量是用 token 計算的，用得越多，費用越高。使用者送出的回饋，不需要每一筆都直接交給最大的模型。先用比較便宜的方式處理一次，可以省下用量：</p>
   <ul>
-    <li><b>合併重複。</b>同一個問題被不同人回報好幾次，只處理一次。</li>
-    <li><b>先分類。</b>是 bug、功能建議，還是操作上的誤會；分類本身就決定了 5.2 的分流。</li>
-    <li><b>查有沒有現成答案。</b>用 RAG 比對歷史的 issue 和已結案的回饋，有解就直接回覆。</li>
-    <li><b>圈出範圍。</b>用知識圖先找出相關的檔案，只把那幾個交給模型。</li>
+    <li><b>合併重複的回饋。</b>同一個問題被不同人回報好幾次，只處理一次。</li>
+    <li><b>先分類。</b>分成程式的問題、功能建議、操作上的誤會。分類的結果也決定 5.2 要走哪一條路。</li>
+    <li><b>先找現成的答案。</b>搜尋過去的問題紀錄和已經結案的回饋。找得到就直接回覆。</li>
+    <li><b>先縮小範圍。</b>用知識圖找出相關的檔案，只把那幾個檔案交給模型。</li>
   </ul>
-  <p>實際能省多少還沒有量過，這裡先不寫數字。</p>
+  <p>實際能省多少還沒有測過，所以這裡不寫數字。</p>
 
   <h3 id="n-open"><span class="no">5.5</span>還沒想清楚的事</h3>
-  <p>前面四關講的都是「為什麼不能讓 AI 自己決定」，這一章卻是要把我從一部分流程裡拿掉。下面這些問題還沒有答案：</p>
+  <p>前面的四關都在說明「為什麼不能讓 AI 自己決定」。這一章卻打算讓一部分的事不用經過我。下面這些問題還沒有答案：</p>
   <ul>
-    <li><b>回饋是別人輸入的文字。</b>現在有我擋在中間；自動化之後，一段寫得像指令的回饋會直接送到能改程式的 AI 面前。</li>
-    <li><b>誰來判斷難度。</b>如果是 AI 自己說「這只是 CSS」，那等於讓它自己決定要不要問我。比較可靠的做法可能是看實際改了哪些檔案，而不是看它怎麼說。</li>
-    <li><b>「直接處理」做到哪一步。</b>改完、驗證完就自動部署到正式站，還是停在部署前等我按一次同意？</li>
-    <li><b>原本的四關留下哪幾關。</b>獨立驗證和兩道 hook 不需要我在場，應該可以照舊；動手前的確認要怎麼對應到沒有人的流程，還要想。</li>
-    <li><b>改壞了怎麼辦。</b>誰會發現、怎麼退回、要不要通知送出回饋的人。</li>
-    <li><b>費用。</b>Bedrock 的花費，以及一筆回饋最多能花多少。</li>
+    <li><b>回饋是別人輸入的文字。</b>現在有我在中間把關。自動化之後，一段寫得像指令的回饋，會直接送到能改程式的 AI 面前。</li>
+    <li><b>難度由誰判斷。</b>如果是 AI 自己說「這只是改 CSS」，等於讓它自己決定要不要問我。比較可靠的做法，可能是檢查它實際改了哪些檔案，而不是聽它怎麼說。</li>
+    <li><b>「直接處理」要做到哪一步。</b>改完、檢查完就自動部署到正式站，還是停在部署之前，等我按一次同意？</li>
+    <li><b>原本的四關要留下哪些。</b>第二關的檢查和兩道 hook 不需要我在場，應該可以照舊。第一關「動手前先問我」在沒有人的流程裡要怎麼做，還要再想。</li>
+    <li><b>改壞了怎麼辦。</b>誰會發現？怎麼改回來？要不要通知送出回饋的人？</li>
+    <li><b>費用。</b>Bedrock 要花多少錢？處理一筆回饋最多可以花多少？</li>
   </ul>
 </section>
 
 <section id="takeaways">
-  <h2><span class="no">6</span>帶得走的三件事</h2>
+  <h2><span class="no">6</span>三個重點</h2>
   <div class="cols3 takeaways">
-    <div class="box"><p>寫的和驗的分開。只給驗證的人需求，不給結論。</p></div>
-    <div class="box"><p>收不回來的動作用 hook 擋，其他會動到線上的用問的。</p></div>
-    <div class="box"><p>要求報告寫出「沒驗證到什麼」，比寫「都過了」有用。</p></div>
+    <div class="box"><p>寫的和檢查的要分開。只給檢查的一方需求，不給它結論。</p></div>
+    <div class="box"><p>做了就收不回來的動作，用 hook 擋掉。其他會動到正式站的動作，先問人。</p></div>
+    <div class="box"><p>要求報告寫出「沒有檢查到什麼」。這比只寫「都通過了」有用。</p></div>
   </div>
-  <p>這三件事跟模型多強沒有關係，處理的是人和 AI 怎麼分工。</p>
-  <p>專案很小，一台主機、一個資料庫。hook 和 verifier 是十月中一天之內補上去的，起因是我發現自己沒辦法每次都盯著它做完。規則是一條一條踩出來的，不是一開始設計好的。</p>
+  <p>這三件事跟 AI 模型有多強沒有關係。它們處理的是人和 AI 怎麼分工。</p>
+  <p>這個專案很小，只有一台主機、一個資料庫。hook 和 verifier 是十月中在一天之內加上去的，原因是我發現自己沒辦法每次都盯著 AI 做完。這些規則是出過問題之後一條一條加的，不是一開始就設計好的。</p>
 </section>
 
-<footer class="doc">圖 1、圖 2 用 Archify 產生，放在同一個 <code>diagrams/</code> 資料夾；圖 3 是 graphify 產生的知識圖截圖。</footer>
+<footer class="doc">圖 1、圖 2 用 Archify 產生，放在同一個 <code>diagrams/</code> 資料夾。圖 3 是 graphify 產生的知識圖的截圖。</footer>
 </main>
 </div>
 
