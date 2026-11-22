@@ -29,6 +29,20 @@ class UserService:
         return value or None
 
     @staticmethod
+    def _assert_line_id_available(line_id: Optional[str], exclude_user_id: Optional[uuid.UUID] = None) -> None:
+        """LINE ID 重複時丟出中文錯誤，而不是讓資料庫的 unique 違反變成 500。"""
+        if not line_id:
+            return
+        stmt = db.session.query(User).filter(
+            User.line_id == line_id,
+            User.deleted_at.is_(None)
+        )
+        if exclude_user_id:
+            stmt = stmt.filter(User.id != exclude_user_id)
+        if stmt.first():
+            raise ValueError("此 LINE ID 已被使用")
+
+    @staticmethod
     def _assert_username_available(username: Optional[str], exclude_user_id: Optional[uuid.UUID] = None) -> None:
         """帳號重複時丟出中文錯誤，而不是讓資料庫的 unique 違反變成 500。"""
         if not username:
@@ -72,7 +86,8 @@ class UserService:
             role = UserRole.STUDENT
 
         email = data.get("email")
-        line_id = data.get("line_id")
+        # 空字串存成 NULL：line_id 是 unique，只允許一筆空字串。
+        line_id = UserService._normalize_username(data.get("line_id"))
         phone = data.get("phone")
         credits = data.get("credits", 0)
         # lesson_count (堂數) defaults to the same number as credits (點數) when
@@ -159,7 +174,12 @@ class UserService:
         if "email" in data:
             user.email = data["email"]
         if "line_id" in data:
-            user.line_id = data["line_id"]
+            # 空字串存成 NULL：line_id 是 unique，只允許一筆空字串，
+            # 否則第二個沒填 LINE ID 的人存檔就會撞到 unique 變成 500。
+            new_line_id = UserService._normalize_username(data["line_id"])
+            with db.session.no_autoflush:
+                UserService._assert_line_id_available(new_line_id, exclude_user_id=user.id)
+            user.line_id = new_line_id
         if "line_display_name" in data:
             user.line_display_name = data["line_display_name"]
         if "credits" in data and data["credits"] is not None:
