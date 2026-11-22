@@ -179,14 +179,14 @@ def get_user_full_profile(user_id):
 @user_bp.route("/", methods=["POST"])
 @admin_required
 def create_user():
-    data = request.get_json(silent=True)
+    data = _json_object()
     if not data:
-        return jsonify({"error": "No data provided"}), 400
+        return jsonify({"error": "沒有收到資料，或資料格式不正確"}), 400
 
     try:
         user = UserService.create_user(data)
         return jsonify({
-            "message": "User created successfully",
+            "message": "使用者新增成功",
             "user": {
                 "id": str(user.id),
                 "display_name": user.display_name,
@@ -202,15 +202,25 @@ def create_user():
         return jsonify({"error": "Internal server error"}), 500
 
 
+def _json_object():
+    """請求內容必須是 JSON 物件。陣列、純字串、巢狀過深等一律當成沒給資料，
+    免得後面當 dict 用時變成 500。"""
+    try:
+        data = request.get_json(silent=True)
+    except Exception:
+        return None
+    return data if isinstance(data, dict) and data else None
+
+
 SELF_SERVICE_FIELDS = {"display_name", "username", "nickname", "phone", "gender", "line_id", "line_display_name", "password"}
 
 
 @user_bp.route("/<user_id>", methods=["PUT"])
 @login_required
 def update_user(user_id):
-    data = request.get_json(silent=True)
+    data = _json_object()
     if not data:
-        return jsonify({"error": "No data provided"}), 400
+        return jsonify({"error": "沒有收到資料，或資料格式不正確"}), 400
 
     try:
         uid = uuid.UUID(user_id)
@@ -219,7 +229,9 @@ def update_user(user_id):
         # current_password is a credential used for verification, never a column to
         # write — pull it out before any whitelisting so it can't be persisted, and
         # so the whitelist below doesn't discard it before we get to check it.
-        current_password = (data.pop("current_password", "") or "")
+        current_password = data.pop("current_password", "")
+        if not isinstance(current_password, str):
+            current_password = ""
 
         if current_user.role.value != "admin":
             # Non-admin users may only edit their own profile, and only
@@ -234,9 +246,14 @@ def update_user(user_id):
             # are exempt — they are the recovery path when a user forgets it.
             sensitive = bool(data.get("password")) or "username" in data
             if sensitive:
-                if not current_user.password_hash or not check_password_hash(
-                    current_user.password_hash, current_password
-                ):
+                try:
+                    password_ok = bool(current_user.password_hash) and check_password_hash(
+                        current_user.password_hash, current_password
+                    )
+                except ValueError:
+                    # 含有無法編碼的字元（半個 emoji）——不可能是正確的密碼
+                    password_ok = False
+                if not password_ok:
                     return jsonify({"error": "目前密碼不正確"}), 403
 
         user = UserService.update_user(uid, data)

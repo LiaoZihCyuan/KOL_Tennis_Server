@@ -16,6 +16,20 @@
 {% endblock %}
 
 {% block content %}
+<style>
+    /* 固定在右側的操作欄：左緣畫一條分隔線加淡淡的陰影，橫向捲動時看得出它蓋在其他欄位上面。
+       border-collapse 的表格不會畫出儲存格自己的 border／box-shadow，所以用 ::before 畫。 */
+    .sticky-actions::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 1px;
+        background: #cbd5e1;
+        box-shadow: -3px 0 6px rgba(15, 23, 42, 0.15);
+    }
+</style>
 <div class="max-w-7xl mx-auto bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
     <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
         <div>
@@ -29,15 +43,17 @@
         <table class="w-full text-left text-sm text-slate-600">
             <thead class="bg-slate-50 text-xs font-bold text-slate-500 border-b border-slate-200">
                 <tr>
-                    <th class="px-6 py-4">姓名</th>
-                    <th class="px-6 py-4">小名 / 暱稱</th>
-                    <th class="px-6 py-4">角色</th>
-                    <th class="px-6 py-4">聯絡電話</th>
-                    <th class="px-6 py-4">LINE 帳號</th>
-                    <th class="px-6 py-4">性別</th>
-                    <th class="px-6 py-4">點數 / 堂數</th>
-                    <th class="px-6 py-4">備註 / 意願</th>
-                    <th class="px-6 py-4 text-right">操作</th>
+                    <th class="px-4 py-4 whitespace-nowrap">姓名</th>
+                    <th class="px-4 py-4 whitespace-nowrap">小名 / 暱稱</th>
+                    <th class="px-4 py-4 whitespace-nowrap">角色</th>
+                    <th class="px-4 py-4 whitespace-nowrap">聯絡電話</th>
+                    <th class="px-4 py-4 whitespace-nowrap">LINE 帳號</th>
+                    <th class="px-4 py-4 whitespace-nowrap">性別</th>
+                    <th class="px-4 py-4 whitespace-nowrap">點數 / 堂數</th>
+                    <th class="px-4 py-4 whitespace-nowrap">備註 / 意願</th>
+                    <!-- 操作欄固定在右側：表格比畫面寬、需要橫向捲動時，「編輯」仍然隨時按得到。
+                         分隔線見上面的 .sticky-actions -->
+                    <th class="px-4 py-4 whitespace-nowrap text-right sticky right-0 bg-slate-50 sticky-actions">操作</th>
                 </tr>
             </thead>
             <tbody id="userTableBody" class="divide-y divide-slate-100 font-medium">
@@ -232,15 +248,15 @@ function renderUserTable(users) {
         }
 
         tr.innerHTML = `
-            <td class="px-6 py-4 font-bold text-slate-800">${nameDisplay}</td>
-            <td class="px-6 py-4 text-slate-600">${escapeHtml(user.nickname) || '-'}</td>
-            <td class="px-6 py-4">${roleMap[user.role] || escapeHtml(user.role)}</td>
-            <td class="px-6 py-4 font-mono text-xs">${escapeHtml(user.phone) || '-'}</td>
-            <td class="px-6 py-4 font-mono">${lineInfo}</td>
-            <td class="px-6 py-4 text-xs">${genderMap[user.gender] || '-'}</td>
-            <td class="px-6 py-4 font-mono"><span class="font-bold text-blue-600">${user.credits} 點</span><span class="text-slate-400"> / ${user.lesson_count ?? 0} 堂</span></td>
-            <td class="px-6 py-4 text-xs text-slate-500 max-w-[200px] truncate" title="${escapeHtml(user.notes || user.description)}">${escapeHtml(user.notes || user.description) || '-'}</td>
-            <td class="px-6 py-4 text-right">
+            <td class="px-4 py-4 font-bold text-slate-800">${nameDisplay}</td>
+            <td class="px-4 py-4 text-slate-600">${escapeHtml(user.nickname) || '-'}</td>
+            <td class="px-4 py-4 whitespace-nowrap">${roleMap[user.role] || escapeHtml(user.role)}</td>
+            <td class="px-4 py-4 font-mono text-xs whitespace-nowrap">${escapeHtml(user.phone) || '-'}</td>
+            <td class="px-4 py-4 font-mono">${lineInfo}</td>
+            <td class="px-4 py-4 text-xs whitespace-nowrap">${genderMap[user.gender] || '-'}</td>
+            <td class="px-4 py-4 font-mono whitespace-nowrap"><span class="font-bold text-blue-600">${user.credits} 點</span><span class="text-slate-400"> / ${user.lesson_count ?? 0} 堂</span></td>
+            <td class="px-4 py-4 text-xs text-slate-500 max-w-[200px] truncate" title="${escapeHtml(user.notes || user.description)}">${escapeHtml(user.notes || user.description) || '-'}</td>
+            <td class="px-4 py-4 text-right whitespace-nowrap sticky right-0 bg-white sticky-actions">
                 <button onclick="openEditUserModal('${user.id}')" class="px-2.5 py-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors">
                     編輯
                 </button>

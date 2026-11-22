@@ -7,6 +7,15 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### 表格的 sticky 儲存格畫不出 border 與 box-shadow，只看 computed style 以為有（2026-11-22）
+- **狀況**：`/users` 把「操作」欄固定在右側，加了 `border-l` 當分隔線，computed style 是 1px 但畫面上沒有線，verifier 讀像素判 FAIL；改成 `box-shadow` 也一樣畫不出來。
+- **原因**：Tailwind 的表格預設 `border-collapse: collapse`，此時儲存格自己的 border 與 box-shadow 都不會被畫出來。
+- **下次怎麼做**：sticky 儲存格的分隔線用 `::before`（`position:absolute; left:0; width:1px`）畫；版面類的改動交給 verifier 前先看放大的截圖，不要只看 computed style 或量測數字。
+
+### 寫輸入驗證只擋想到的那幾種，verifier 換欄位、換型別又抓到 500（2026-11-22）
+- **狀況**：補使用者 API 的異常輸入處理，漏了 `current_password`（在 route 就被拿去比對）、`preferred_venues`（JSON 欄位吃不了 NaN）、密碼含半個 emoji（`UnicodeEncodeError` 是 `ValueError` 的子類別，原始英文訊息被當成 400 回給使用者）。
+- **下次怎麼做**：動手前先列出該 endpoint「所有」會讀的欄位（route 與 service 都要看），每個欄位各用 int／float／NaN／list／dict／bool／null／NUL／`\ud83d` 打一輪；`except ValueError` 會連 Unicode 錯誤一起接住，要確認回出去的訊息是自己寫的。
+
 ### 修頁首擠壓只測「目前的文字」，verifier 用較長的文字連續判 FAIL 兩次（2026-11-22）
 - **狀況**：修 `/calendar` 桌機頁首換行，我只量了本週的日期標籤與「全部教練」；verifier 換成跨年週的日期（多一個年份）、只選一位長名字教練，1280px 與 1440px 先後溢出、折行，每次重驗 15～20 分鐘。
 - **原因**：頁首的日期標籤、教練篩選標籤、通知數字都是會變長的動態文字；而且保護規則只加在某一段寬度，隔壁的 breakpoint 沒有。

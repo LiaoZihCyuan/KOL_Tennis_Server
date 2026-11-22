@@ -21,15 +21,30 @@ def get_auth_config():
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json(silent=True)
-    if not data:
+    try:
+        data = request.get_json(silent=True)
+    except Exception:
+        data = None
+    if not isinstance(data, dict) or not data:
         return jsonify({"error": "請提供帳號與密碼"}), 400
 
-    identifier = (data.get("identifier") or data.get("username") or "").strip()
+    identifier = data.get("identifier") or data.get("username") or ""
     password = data.get("password", "")
+    # 非字串（數字、陣列…）一律當成沒填，免得後面當字串用時變成 500
+    if not isinstance(identifier, str) or not isinstance(password, str):
+        identifier, password = "", ""
+    identifier = identifier.strip()
 
     if not identifier or not password:
         return jsonify({"error": "帳號與密碼為必填"}), 400
+
+    # NUL 字元與半個 emoji 無法拿去查 PostgreSQL，也不可能是存在的帳號
+    try:
+        identifier.encode("utf-8")
+    except UnicodeEncodeError:
+        return jsonify({"error": "帳號或密碼錯誤"}), 401
+    if "\x00" in identifier:
+        return jsonify({"error": "帳號或密碼錯誤"}), 401
 
     # Search user by username, phone, email, or line_id.
     # display_name is deliberately NOT a login identifier: it is the name shown on
@@ -47,7 +62,12 @@ def login():
     if not user:
         return jsonify({"error": "帳號或密碼錯誤"}), 401
 
-    if not user.password_hash or not check_password_hash(user.password_hash, password):
+    try:
+        password_ok = bool(user.password_hash) and check_password_hash(user.password_hash, password)
+    except ValueError:
+        # 含有無法編碼的字元（半個 emoji）——不可能是正確的密碼
+        password_ok = False
+    if not password_ok:
         return jsonify({"error": "帳號或密碼錯誤"}), 401
 
     # Generate JWT token (expires in 7 days)

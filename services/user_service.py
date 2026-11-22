@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from werkzeug.security import generate_password_hash
+from sqlalchemy.exc import IntegrityError
 from extensions import db
 from models.user import User, UserRole, Gender
 from models.booking import Booking, BookingStatus
@@ -13,12 +14,13 @@ from utils.colors import suggest_distinct_color
 class UserService:
     @staticmethod
     def _parse_level(level: Any) -> Optional[int]:
-        if level is None or str(level).strip() == "":
+        if level is None or isinstance(level, bool) or str(level).strip() == "":
             return None
         try:
-            return int(level)
-        except (ValueError, TypeError):
+            number = int(level)
+        except (ValueError, TypeError, OverflowError):
             return None
+        return number if UserService._INT_MIN <= number <= UserService._INT_MAX else None
 
     @staticmethod
     def _normalize_username(value: Any) -> Optional[str]:
@@ -40,6 +42,75 @@ class UserService:
         "color": ("代表色", 7),
         "description": ("說明", 500),
     }
+
+    _TEXT_LABELS = {
+        **{field: label for field, (label, _) in _MAX_LENGTHS.items()},
+        "notes": "備註",
+        "password": "密碼",
+        "role": "角色",
+        "gender": "性別",
+    }
+    _INT_MIN, _INT_MAX = -2147483648, 2147483647
+
+    @staticmethod
+    def _clean_text_fields(data: Dict[str, Any]) -> Dict[str, Any]:
+        """把文字欄位整理成資料庫存得進去的字串，回傳新的 dict（不改呼叫端的）。
+
+        - 數字（例如 phone 傳成整數）轉成字串；陣列、物件、布林值直接拒絕。
+        - 去掉 PostgreSQL 存不進去的 NUL 字元與不成對的 surrogate（半個 emoji）。
+        密碼只檢查型別，內容不動。
+        """
+        cleaned = dict(data)
+        for field, label in UserService._TEXT_LABELS.items():
+            value = cleaned.get(field)
+            if value is None:
+                continue
+            # 只接受字串與整數；小數（含 NaN／Infinity）轉成字串沒有意義
+            if isinstance(value, bool) or not isinstance(value, (str, int)):
+                raise ValueError(f"{label} 格式不正確")
+            if field == "password":
+                if not isinstance(value, str):
+                    raise ValueError(f"{label} 格式不正確")
+                try:
+                    value.encode("utf-8")
+                except UnicodeEncodeError:
+                    raise ValueError(f"{label} 含有無法使用的字元")
+                continue
+            value = str(value).replace("\x00", "")
+            cleaned[field] = value.encode("utf-8", "ignore").decode("utf-8")
+        return cleaned
+
+    @staticmethod
+    def _parse_int(value: Any, label: str) -> int:
+        """點數／堂數：不是整數或超出資料庫範圍時丟出中文錯誤，而不是 500。"""
+        if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
+            raise ValueError(f"{label} 必須是整數")
+        try:
+            number = int(value)
+        except (ValueError, TypeError, OverflowError):
+            raise ValueError(f"{label} 必須是整數")
+        if not UserService._INT_MIN <= number <= UserService._INT_MAX:
+            raise ValueError(f"{label} 數值過大")
+        return number
+
+    @staticmethod
+    def _clean_venues(value: Any) -> Optional[List[str]]:
+        """偏好場地：只接受字串陣列（JSON 欄位存不了 NaN／Infinity 之類的值）。"""
+        if not isinstance(value, list):
+            return None
+        if len(value) > 20 or not all(isinstance(v, str) and len(v) <= 100 for v in value):
+            raise ValueError("偏好場地 格式不正確")
+        return [v.replace("\x00", "").encode("utf-8", "ignore").decode("utf-8") for v in value]
+
+    @staticmethod
+    def _commit() -> None:
+        """兩個請求同時搶同一個 LINE ID／帳號／Email 時，事前檢查都會通過，
+        要靠資料庫的 unique 限制擋下後者；把它轉成 400 而不是 500。"""
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            raise ValueError("LINE ID、登入帳號或 Email 與其他使用者重複，請重新整理後再試")
 
     @staticmethod
     def _assert_lengths(data: Dict[str, Any]) -> None:
@@ -97,12 +168,13 @@ class UserService:
 
     @staticmethod
     def create_user(data: Dict[str, Any]) -> User:
+        data = UserService._clean_text_fields(data)
         display_name = data.get("display_name")
         if not display_name:
             raise ValueError("請填寫顯示名稱")
         UserService._assert_lengths(data)
 
-        role_str = data.get("role", "student").upper()
+        role_str = (data.get("role") or "student").upper()
         try:
             role = UserRole[role_str]
         except KeyError:
@@ -113,13 +185,14 @@ class UserService:
         # 空字串存成 NULL：line_id 是 unique，只允許一筆空字串。
         line_id = UserService._normalize_username(data.get("line_id"))
         phone = data.get("phone")
-        credits = data.get("credits", 0)
+        credits = data.get("credits")
+        credits = UserService._parse_int(credits, "點數") if credits not in (None, "") else 0
         # lesson_count (堂數) defaults to the same number as credits (點數) when
         # not given separately — for the common 1 小時 = 1 點 = 1 堂 case this
         # just works; admins can override it if this batch of credits was
         # bought for longer lessons.
         lesson_count = data.get("lesson_count")
-        lesson_count = int(lesson_count) if lesson_count not in (None, "") else credits
+        lesson_count = UserService._parse_int(lesson_count, "堂數") if lesson_count not in (None, "") else credits
 
         # Check for duplicates if email, line_id, or phone is provided
         UserService._assert_email_available(email)
@@ -168,11 +241,11 @@ class UserService:
             password_hash=password_hash,
             description=data.get("description"),
             level=UserService._parse_level(data.get("level")),
-            preferred_venues=data.get("preferred_venues") if isinstance(data.get("preferred_venues"), list) else None
+            preferred_venues=UserService._clean_venues(data.get("preferred_venues"))
         )
 
         db.session.add(new_user)
-        db.session.commit()
+        UserService._commit()
         return new_user
 
     @staticmethod
@@ -181,6 +254,7 @@ class UserService:
         if not user or user.deleted_at is not None:
             return None
 
+        data = UserService._clean_text_fields(data)
         UserService._assert_lengths(data)
 
         # Fields to update
@@ -204,9 +278,9 @@ class UserService:
         if "line_display_name" in data:
             user.line_display_name = data["line_display_name"]
         if "credits" in data and data["credits"] is not None:
-            user.credits = int(data["credits"])
+            user.credits = UserService._parse_int(data["credits"], "點數")
         if "lesson_count" in data and data["lesson_count"] is not None:
-            user.lesson_count = int(data["lesson_count"])
+            user.lesson_count = UserService._parse_int(data["lesson_count"], "堂數")
         if "color" in data:
             user.color = data["color"]
         if "notes" in data:
@@ -216,7 +290,7 @@ class UserService:
         if "level" in data:
             user.level = UserService._parse_level(data["level"])
         if "preferred_venues" in data and isinstance(data["preferred_venues"], list):
-            user.preferred_venues = data["preferred_venues"]
+            user.preferred_venues = UserService._clean_venues(data["preferred_venues"])
         if "gender" in data and data["gender"]:
             try:
                 user.gender = Gender(data["gender"].lower())
@@ -240,7 +314,7 @@ class UserService:
                         f"已設定密碼，但預設帳號「{fallback}」已被使用，請另外指定「登入帳號」"
                     )
 
-        db.session.commit()
+        UserService._commit()
         return user
 
     @staticmethod

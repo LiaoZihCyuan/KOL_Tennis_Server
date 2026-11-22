@@ -572,7 +572,8 @@ document.addEventListener('DOMContentLoaded', function() {
             let isListView = arg.view.type.startsWith('list');
 
             if (isOtherStudent) {
-                let coachColor = arg.event.extendedProps.coach_color || '#3b82f6';
+                // 沒有教練的課後端給的是佔位用的藍色，容易被誤認成某位教練的代表色，改用中性灰
+                let coachColor = isUnassigned ? '#64748b' : (arg.event.extendedProps.coach_color || '#3b82f6');
                 if (isListView) {
                     return {
                         html: `<span class="coach-name-text px-2 py-0.5 rounded-md text-xs font-bold border" style="background-color: ${coachColor}15; color: ${coachColor}; border-color: ${coachColor};">${coach}${location ? ' · ' + location : ''}</span>`
