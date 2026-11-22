@@ -273,3 +273,132 @@ aside {
         white-space: nowrap;
     }
 }
+
+/* 桌機：頁首項目多（標題、新增課程、通知、教練篩選、週次、日/週、日期導航），
+   視窗不夠寬時瀏覽器會把標題與按鈕文字擠成直排。文字一律不換行，再依寬度處理：
+   1280～1439px 收掉「後台 / 排課系統」麵包屑、縮小間距與左右留白，排成一行，
+   並限制教練篩選標籤的寬度（只選一位名字很長的教練時用「…」截斷），
+   留餘裕給跨年週較長的日期標籤與不同作業系統的字寬差異；
+   1025～1279px（側邊欄還在、內容區不到 1000px）一行排不下，標題與操作列各佔一行。
+   breakpoint 寫成 .98/.99/.02：Windows 顯示縮放 125%/150% 時視窗寬度會是小數
+   （例如 1279.2px），整數的 max-width:1279 / min-width:1280 中間會漏掉 1px。 */
+@media (min-width: 1024.02px) {
+    main > header > div:first-child > span,
+    #calendarHeaderActions button,
+    #calendarHeaderActions select {
+        white-space: nowrap;
+    }
+
+    #calendarHeaderActions > * {
+        flex-shrink: 0;
+    }
+}
+
+@media (min-width: 1279.99px) and (max-width: 1439.98px) {
+    /* :first-child 讓 specificity 高過 Tailwind 的 .flex，才蓋得掉 display */
+    main > header > div:first-child > nav {
+        display: none;
+    }
+
+    /* Tailwind 的 .px-6 specificity 比 main > header 高，要 !important */
+    main > header {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    #calendarHeaderActions {
+        gap: 0.25rem;
+    }
+
+    #coachFilterLabel {
+        display: inline-block;
+        max-width: 4.5em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: bottom;
+    }
+
+    /* 最後一道保險：真的還是放不下時（字型較寬、標籤特別長），讓日期標籤
+       自己縮短成「…」，而不是把「下一週 ▶」推出畫面右緣。 */
+    main > header > div:first-child {
+        flex-shrink: 0;
+    }
+
+    main > header > div:last-child,
+    #calendarHeaderActions,
+    #calendarHeaderActions > div:last-child {
+        min-width: 0;
+        flex-shrink: 1;
+    }
+
+    #currentDateLabel {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-left: 0.375rem;
+        padding-right: 0.375rem;
+    }
+
+    /* 標題字級小一階（18px → 16px），把寬度讓給跨年週的日期標籤 */
+    main > header > div:first-child > span {
+        font-size: 1rem;
+    }
+}
+
+@media (min-width: 1024.02px) and (max-width: 1279.98px) {
+    main > header {
+        flex-direction: column;
+        align-items: flex-start;
+        height: auto !important;
+        padding: 0.75rem 1.5rem !important;
+        gap: 0.5rem;
+    }
+
+    main > header > div {
+        width: 100%;
+    }
+
+    #calendarHeaderActions {
+        flex-wrap: wrap;
+        row-gap: 0.5rem;
+    }
+}
+
+/* 1440px 以上麵包屑會顯示。空間不夠時（跨年週的日期標籤＋只選一位名字很長的
+   教練）讓麵包屑先被裁掉，而不是折成兩行；教練標籤也設寬度上限，用「…」截斷。 */
+@media (min-width: 1439.99px) {
+    main > header > div:first-child {
+        min-width: 0;
+        flex-shrink: 1;
+    }
+
+    main > header > div:first-child > span {
+        flex-shrink: 0;
+    }
+
+    main > header > div:first-child > nav {
+        white-space: nowrap;
+        min-width: 0;
+        flex-shrink: 1;
+        overflow: hidden;
+        margin-right: 0.5rem;
+    }
+
+    main > header > div:first-child > nav > span:last-child {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    main > header > div:last-child {
+        flex-shrink: 0;
+    }
+
+    #coachFilterLabel {
+        display: inline-block;
+        max-width: 8em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: bottom;
+    }
+}

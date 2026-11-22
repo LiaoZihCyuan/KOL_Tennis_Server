@@ -7,6 +7,16 @@ Claude 在這個專案踩過的坑。由 `CLAUDE.md` 匯入，每次對話都會
 
 ---
 
+### 修頁首擠壓只測「目前的文字」，verifier 用較長的文字連續判 FAIL 兩次（2026-11-22）
+- **狀況**：修 `/calendar` 桌機頁首換行，我只量了本週的日期標籤與「全部教練」；verifier 換成跨年週的日期（多一個年份）、只選一位長名字教練，1280px 與 1440px 先後溢出、折行，每次重驗 15～20 分鐘。
+- **原因**：頁首的日期標籤、教練篩選標籤、通知數字都是會變長的動態文字；而且保護規則只加在某一段寬度，隔壁的 breakpoint 沒有。
+- **下次怎麼做**：改版面時先列出所有動態文字的最長情況（跨年週 `2026年12月28日（一）– 2027年1月3日（日）`、長教練名、兩位數通知），用改 DOM 文字的方式在每個 breakpoint 的兩側（1279/1280、1439/1440）都測過再交給 verifier；可重用 `e2e_artifacts/v23_calendar_stress.py`、`v23_nav1440.py`。Tailwind 的 class（`.px-6`、`.flex`）specificity 高過 `main > header` 這類型別選擇器，要用 `:first-child` 或 `!important` 才蓋得掉。
+
+### 沒比對 prod 版本就跟使用者說「這次只部署一個 commit」（2026-11-22）
+- **狀況**：請使用者同意部署時說只有 LINE ID 修正這一個 commit，同意後才比對，發現 prod 還停在更早的版本，會連同另一個沒上線的 app 改動（`da8b47a`）一起出去，只好停下來重新確認並補驗證。
+- **原因**：只看了自己這次的 commit，沒有先查 prod 的 `git log -1` 跟 `origin/main` 差多少。
+- **下次怎麼做**：開口問「要不要部署」之前，先跑 `git log --oneline <prod 版本>..origin/main` 與 `git diff --stat` 同範圍，把所有會上線的 app 改動列給使用者；有沒驗證過的就先驗證。
+
 ### 跑 `/graphify` 產生的 `graphify-out/` 被 Stop hook 當成未驗證的 app 改動（2026-11-12）
 - **狀況**：第一次跑 graphify，等背景 agent 的每個回合都被 `require_verification.py` 擋一次，要求開 verifier，但其實沒有改任何網站程式碼。
 - **原因**：`graphify-out/` 是未追蹤、也沒被 `.gitignore` 排除的新目錄，`verdict.py` 把所有不在忽略清單內的未追蹤檔都算進改動指紋。另外這台的 `graphify` 不在 PATH，CLI 要用 `python3 -m graphify ...`。

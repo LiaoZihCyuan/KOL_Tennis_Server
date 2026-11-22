@@ -28,33 +28,55 @@ class UserService:
         value = str(value).strip()
         return value or None
 
+    # 文字欄位的長度上限，跟 models/user.py 的 String(n) 一致。
+    _MAX_LENGTHS = {
+        "display_name": ("顯示名稱", 255),
+        "username": ("登入帳號", 255),
+        "nickname": ("暱稱", 100),
+        "phone": ("電話", 20),
+        "email": ("Email", 255),
+        "line_id": ("LINE ID", 255),
+        "line_display_name": ("LINE 顯示名稱", 255),
+        "color": ("代表色", 7),
+        "description": ("說明", 500),
+    }
+
     @staticmethod
-    def _assert_line_id_available(line_id: Optional[str], exclude_user_id: Optional[uuid.UUID] = None) -> None:
-        """LINE ID 重複時丟出中文錯誤，而不是讓資料庫的 unique 違反變成 500。"""
-        if not line_id:
+    def _assert_lengths(data: Dict[str, Any]) -> None:
+        """超過欄位長度時丟出中文錯誤，而不是讓資料庫截斷錯誤變成 500。"""
+        for field, (label, limit) in UserService._MAX_LENGTHS.items():
+            value = data.get(field)
+            if value is not None and len(str(value)) > limit:
+                raise ValueError(f"{label} 最多 {limit} 個字")
+
+    @staticmethod
+    def _assert_unique(column, value: Optional[str], message: str, exclude_user_id: Optional[uuid.UUID] = None) -> None:
+        """unique 欄位重複時丟出中文錯誤，而不是讓資料庫的 unique 違反變成 500。
+
+        已軟刪除的使用者也要比對：資料庫的 unique 限制不分是否刪除。
+        """
+        if not value:
             return
-        stmt = db.session.query(User).filter(
-            User.line_id == line_id,
-            User.deleted_at.is_(None)
-        )
+        stmt = db.session.query(User).filter(column == value)
         if exclude_user_id:
             stmt = stmt.filter(User.id != exclude_user_id)
-        if stmt.first():
-            raise ValueError("此 LINE ID 已被使用")
+        with db.session.no_autoflush:
+            if stmt.first():
+                raise ValueError(message)
+
+    @staticmethod
+    def _assert_line_id_available(line_id: Optional[str], exclude_user_id: Optional[uuid.UUID] = None) -> None:
+        UserService._assert_unique(User.line_id, line_id, "此 LINE ID 已被使用", exclude_user_id)
+
+    @staticmethod
+    def _assert_email_available(email: Optional[str], exclude_user_id: Optional[uuid.UUID] = None) -> None:
+        UserService._assert_unique(User.email, email, "此 Email 已被使用", exclude_user_id)
 
     @staticmethod
     def _assert_username_available(username: Optional[str], exclude_user_id: Optional[uuid.UUID] = None) -> None:
-        """帳號重複時丟出中文錯誤，而不是讓資料庫的 unique 違反變成 500。"""
-        if not username:
-            return
-        stmt = db.session.query(User).filter(
-            User.username == username,
-            User.deleted_at.is_(None)
+        UserService._assert_unique(
+            User.username, username, f"帳號「{username}」已被使用，請換一個", exclude_user_id
         )
-        if exclude_user_id:
-            stmt = stmt.filter(User.id != exclude_user_id)
-        if stmt.first():
-            raise ValueError(f"帳號「{username}」已被使用，請換一個")
 
     @staticmethod
     def get_all_users() -> List[User]:
@@ -77,7 +99,8 @@ class UserService:
     def create_user(data: Dict[str, Any]) -> User:
         display_name = data.get("display_name")
         if not display_name:
-            raise ValueError("Display name is required")
+            raise ValueError("請填寫顯示名稱")
+        UserService._assert_lengths(data)
 
         role_str = data.get("role", "student").upper()
         try:
@@ -85,7 +108,8 @@ class UserService:
         except KeyError:
             role = UserRole.STUDENT
 
-        email = data.get("email")
+        # 空字串存成 NULL：email 是 unique，只允許一筆空字串。
+        email = UserService._normalize_username(data.get("email"))
         # 空字串存成 NULL：line_id 是 unique，只允許一筆空字串。
         line_id = UserService._normalize_username(data.get("line_id"))
         phone = data.get("phone")
@@ -98,15 +122,8 @@ class UserService:
         lesson_count = int(lesson_count) if lesson_count not in (None, "") else credits
 
         # Check for duplicates if email, line_id, or phone is provided
-        if email:
-            existing_email = db.session.query(User).filter(User.email == email, User.deleted_at.is_(None)).first()
-            if existing_email:
-                raise ValueError("Email already registered")
-                
-        if line_id:
-            existing_line_id = db.session.query(User).filter(User.line_id == line_id, User.deleted_at.is_(None)).first()
-            if existing_line_id:
-                raise ValueError("LINE ID already registered")
+        UserService._assert_email_available(email)
+        UserService._assert_line_id_available(line_id)
 
         if phone:
             existing_phone = db.session.query(User).filter(User.phone == phone, User.deleted_at.is_(None)).first()
@@ -164,6 +181,8 @@ class UserService:
         if not user or user.deleted_at is not None:
             return None
 
+        UserService._assert_lengths(data)
+
         # Fields to update
         if "display_name" in data and data["display_name"]:
             user.display_name = data["display_name"]
@@ -172,13 +191,15 @@ class UserService:
         if "phone" in data:
             user.phone = data["phone"]
         if "email" in data:
-            user.email = data["email"]
+            # 空字串存成 NULL，理由同 line_id
+            new_email = UserService._normalize_username(data["email"])
+            UserService._assert_email_available(new_email, exclude_user_id=user.id)
+            user.email = new_email
         if "line_id" in data:
             # 空字串存成 NULL：line_id 是 unique，只允許一筆空字串，
             # 否則第二個沒填 LINE ID 的人存檔就會撞到 unique 變成 500。
             new_line_id = UserService._normalize_username(data["line_id"])
-            with db.session.no_autoflush:
-                UserService._assert_line_id_available(new_line_id, exclude_user_id=user.id)
+            UserService._assert_line_id_available(new_line_id, exclude_user_id=user.id)
             user.line_id = new_line_id
         if "line_display_name" in data:
             user.line_display_name = data["line_display_name"]
